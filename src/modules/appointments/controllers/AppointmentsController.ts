@@ -1,17 +1,8 @@
-import { Router } from "express";
+import { type Request, type Response } from "express";
 import { z } from "zod";
 import { AppointmentsService } from "../domain/AppointmentsService.js";
 import { AppointmentsRepository } from "../repositories/AppointmentsRepository.js";
-import { ensureAuthenticated } from "../../auth/middleware/ensureAuthenticated.js";
 
-const appointmentsRouter = Router();
-const appointmentsService = new AppointmentsService(new AppointmentsRepository());
-
-appointmentsRouter.use(ensureAuthenticated);
-
-// ==========================================
-// 🛡️ Validações com o Zod 
-// ==========================================
 const ListAppointmentsQueryParams = z.object({
   date: z.string().optional(),
   barberId: z.coerce.number().optional(),
@@ -25,103 +16,104 @@ const CreateAppointmentBody = z.object({
   servicoIds: z.array(z.number()).optional(),
 });
 
-// ==========================================
-// 🎛️ Rotas HTTP Limpas (Clean Architecture)
-// ==========================================
+export class AppointmentController {
+  private appointmentsService: AppointmentsService;
 
-// GET: Listar com filtros opcionais (?date=2026-06-16&barberId=1)
-appointmentsRouter.get("/", async (req, res) => {
-  const query = ListAppointmentsQueryParams.safeParse(req.query);
-  if (!query.success) return res.status(400).json({ error: query.error.message });
-
-  try {
-
-    if(req.user?.role!== "admin") {
-      query.data.barberId = req.user?.id;
-    }
-
-    const result = await appointmentsService.list(query.data);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
+  constructor() {
+    // Mantendo a injeção clássica que você estruturou
+    this.appointmentsService = new AppointmentsService(new AppointmentsRepository());
   }
-});
 
-// GET: Buscar um agendamento específico por ID
-appointmentsRouter.get("/:id", async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  list = async (req: Request, res: Response): Promise<Response> => {
+    const query = ListAppointmentsQueryParams.safeParse(req.query);
+    if (!query.success) return res.status(400).json({ error: query.error.message });
 
-    const result = await appointmentsService.getById(id);
-    if (!result) return res.status(404).json({ error: "Appointment not found" });
+    try {
+      // Criamos um filtro limpo sem mutar diretamente o objeto do Zod
+      const filters = { ...query.data };
 
-    if (req.user?.role !== "admin" && result.barbeiroId !== req.user?.id) {
-      return res.status(403).json({ error: "Acesso negado a este agendamento" });
-    }
-
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// POST: Criar um novo agendamento com serviços atrelados
-appointmentsRouter.post("/", async (req, res) => {
-  const parsed = CreateAppointmentBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-
-   try {
       if (req.user?.role !== "admin") {
-       parsed.data.barbeiroId = req.user!.id;
+        filters.barberId = req.user?.id;
+      }
+
+      const result = await this.appointmentsService.list(filters);
+      return res.json(result);
+    } catch (err) {
+      return res.status(500).json({ error: "Internal server error" });
     }
+  };
 
-    const result = await appointmentsService.createAppointment(parsed.data);
-    res.status(201).json(result);
-  } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  getById = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const id = Number(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-// PATCH: Atualizar dados ou serviços de um agendamento existente
-appointmentsRouter.patch("/:id", async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      const result = await this.appointmentsService.getById(id);
+      if (!result) return res.status(404).json({ error: "Appointment not found" });
 
-    // Primeiro busca para validar o dono
-    const appointment = await appointmentsService.getById(id);
-    if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+      if (req.user?.role !== "admin" && result.barbeiroId !== req.user?.id) {
+        return res.status(403).json({ error: "Acesso negado a este agendamento" });
+      }
 
-    if (req.user?.role !== "admin" && appointment.barbeiroId !== req.user?.id) {
-      return res.status(403).json({ error: "Você não tem permissão para alterar este agendamento" });
+      return res.json(result);
+    } catch (err) {
+      return res.status(500).json({ error: "Internal server error" });
     }
+  };
 
-    const result = await appointmentsService.updateAppointment(id, req.body);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  create = async (req: Request, res: Response): Promise<Response> => {
+    const parsed = CreateAppointmentBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
-// DELETE: Remover um agendamento (A tabela intermediária apaga em cascata automaticamente)
-appointmentsRouter.delete("/:id", async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    try {
+      // Cria uma cópia com o barbeiro correto baseado no Token se não for Admin
+      const appointmentData = {
+        ...parsed.data,
+        barbeiroId: req.user?.role !== "admin" ? req.user!.id : parsed.data.barbeiroId,
+      };
 
-    const appointment = await appointmentsService.getById(id);
-    if (!appointment) return res.status(404).json({ error: "Appointment not found" });
-
-    if (req.user?.role !== "admin" && appointment.barbeiroId !== req.user?.id) {
-      return res.status(403).json({ error: "Você não tem permissão para deletar este agendamento" });
+      const result = await this.appointmentsService.createAppointment(appointmentData);
+      return res.status(201).json(result);
+    } catch (err) {
+      return res.status(500).json({ error: "Internal server error" });
     }
+  };
 
-    await appointmentsService.deleteAppointment(id);
-    res.status(204).send();
-  } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
- 
-export { appointmentsRouter };
+  update = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const id = Number(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+      const appointment = await this.appointmentsService.getById(id);
+      if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+
+      if (req.user?.role !== "admin" && appointment.barbeiroId !== req.user?.id) {
+        return res.status(403).json({ error: "Você não tem permissão para alterar este agendamento" });
+      }
+
+      const result = await this.appointmentsService.updateAppointment(id, req.body);
+      return res.json(result);
+    } catch (err) {
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  };
+
+  delete = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const id = Number(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+      const appointment = await this.appointmentsService.getById(id);
+      if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+
+      if (req.user?.role !== "admin" && appointment.barbeiroId !== req.user?.id) {
+        return res.status(403).json({ error: "Você não tem permissão para deletar este agendamento" });
+      }
+
+      await this.appointmentsService.deleteAppointment(id);
+      return res.status(204).send();
+    } catch (err) {
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  };
+}

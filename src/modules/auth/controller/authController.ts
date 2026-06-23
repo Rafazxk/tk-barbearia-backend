@@ -1,22 +1,29 @@
 import { type Request, type Response } from "express";
 import { AuthService, RegisterBodySchema } from "../domain/AuthService.js";
+import { BarbersRepository}  from "../repositories/BarbersRepository.js"
 import { z } from "zod";
 
 const LoginBodySchema = z.object({
-  email: z.string().email(),
-  password: z.string()
+  email: z.string().email("E-mail inválido."),
+  password: z.string().min(1, "O token do google é obrigatório.")
+});
+
+const GoogleLoginBodySchema = z.object({
+  token: z.string().min(1, "O token do Google é obrigatório"),
 });
 
 export class AuthController {
   private authService: AuthService;
 
   constructor() {
-    this.authService = new AuthService();
+    const barbersRepository = new BarbersRepository();
+    this.authService = new AuthService(barbersRepository);
   }
 
+  // POST /auth/register
   register = async (req: Request, res: Response): Promise<any> => {
     try {
-      // Valida a entrada com o Zod Schema que criamos no Service
+
       const dadosValidados = RegisterBodySchema.parse(req.body);
       
       const novoBarbeiro = await this.authService.register(dadosValidados);
@@ -56,4 +63,23 @@ export class AuthController {
       return res.status(500).json({ erro: "Erro interno no servidor" });
     }
   };
+
+  loginWithGoogle = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { token } = GoogleLoginBodySchema.parse(req.body);
+
+      const resultado = await this.authService.loginWithGoogle(token);
+
+      return res.status(200).json(resultado);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Erro de validação", detalhes: error });
+      }
+      // Se o e-mail do Google não for de um dos 3 barbeiros, vai cair no 401 (Não autorizado)
+      if (error.message === "Usuário não autorizado a acessar este painel") {
+        return res.status(401).json({ error: error.message });
+      }
+      return res.status(400).json({ error: error.message || "Falha na autenticação com o Google." });
+    }
+  }
 }
