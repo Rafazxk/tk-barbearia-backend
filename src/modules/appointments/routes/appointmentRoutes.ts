@@ -9,6 +9,9 @@ const appointmentController = new AppointmentController();
 appointmentRoutes.use(authMiddleware);
 
 appointmentRoutes.get("/", appointmentController.list);
+
+appointmentRoutes.get("/summary", appointmentController.summary);
+
 appointmentRoutes.get("/:id", appointmentController.getById);
 appointmentRoutes.post("/", appointmentController.create);
 appointmentRoutes.patch("/:id", appointmentController.update);

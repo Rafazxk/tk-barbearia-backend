@@ -3,6 +3,10 @@ import { z } from "zod";
 import { AppointmentsService } from "../domain/AppointmentsService.js";
 import { AppointmentsRepository } from "../repositories/AppointmentsRepository.js";
 
+const SummaryQueryParams = z.object({
+  barberId: z.coerce.number({ message: "barberId precisa ser um número válido" })
+});
+
 const ListAppointmentsQueryParams = z.object({
   date: z.string().optional(),
   barberId: z.coerce.number().optional(),
@@ -23,6 +27,30 @@ export class AppointmentController {
     // Mantendo a injeção clássica que você estruturou
     this.appointmentsService = new AppointmentsService(new AppointmentsRepository());
   }
+  summary = async (req: Request, res: Response): Promise<Response> => {
+    const query = SummaryQueryParams.safeParse(req.query);
+    if (!query.success) {
+    // 🛠️ Linha 33 corrigida: O Zod usa '.issues' em vez de '.errors'
+    return res.status(400).json({ error: query.error.issues[0]!.message });
+  }
+
+    try {
+      let targetBarberId = query.data.barberId;
+
+      // Regra de Negócio/Segurança: Se não for admin, ele só pode ver o resumo dele mesmo
+      if (req.user?.role !== "admin" && req.user?.id) {
+      targetBarberId = req.user.id;
+    }
+
+      // Repassa o ID para o Service calcular as métricas do banco (Postgres/Prisma)
+      const result = await this.appointmentsService.getDashboardSummary(targetBarberId);
+      
+      return res.json(result);
+    } catch (err) {
+      console.error("Erro no summary controller:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  };
 
   list = async (req: Request, res: Response): Promise<Response> => {
     const query = ListAppointmentsQueryParams.safeParse(req.query);

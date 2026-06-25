@@ -24,7 +24,21 @@ export class AppointmentsService {
       })
     );
   }
+  
+async getDashboardSummary(barberId: number) {
+    // TODO: Chamar o seu appointmentsRepository para buscar as contagens reais do banco
+    // const totalHoje = await this.appointmentsRepository.countTodayByBarber(barberId);
 
+    // Retorno temporário estruturado para satisfazer o TypeScript e o Front-end
+    return {
+      appointmentsToday: 0,
+      pendingCount: 0,
+      revenueToday: "0.00",
+      appointmentsThisWeek: 0,
+      topService: "—"
+    };
+  }
+  
   async list(filters?: IAppointmentsFilters) {
     const base = await this.appointmentsRepository.findAll(filters);
     return this.enrich(base);
