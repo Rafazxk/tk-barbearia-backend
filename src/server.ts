@@ -3,7 +3,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { appointmentRoutes } from "./modules/appointments/routes/appointmentRoutes.js";
-// Corrigido para bater com o export real do módulo de autenticação
 import { authRouter } from "./modules/auth/routes/authRouter.js"; 
 
 dotenv.config();
@@ -11,21 +10,40 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 🌐 1. Lista de origens permitidas (Local e Produção)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://tk-barbearia.vercel.app"
+];
+
 app.use(cors({
-  origin: "http://localhost:5173", // URL do Frontend (Vite)
-  credentials: true
+  origin: (origin, callback) => {
+    // Permite requisições sem origem (como ferramentas de teste, mobile ou insomnia)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Bloqueado pelo CORS: Origem não permitida."));
+    }
+  },
+  credentials: true, 
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"]
 }));
+
 app.use(express.json());
 app.use(cookieParser());
 
 // Rotas do Sistema
 app.use("/api/appointments", appointmentRoutes);
-app.use("/api/auth", authRouter); // Ajustado aqui também
+app.use("/api/auth", authRouter); 
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "online", message: "Servidor voando baixo!" });
 });
 
+// ✅ Ajustado o log para exibir a porta dinâmica injetada pela Railway
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em: http://localhost:${PORT}`);
+  console.log(`🚀 Servidor voando baixo na porta: ${PORT}`);
 });
