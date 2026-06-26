@@ -19,17 +19,11 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite requisições sem origem (como ferramentas de teste)
-    if (!origin) return callback(null, true);
-    
-    // Verifica se a origem está na lista ou se termina com '.vercel.app'
-    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".vercel.app");
-    
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(new Error("Bloqueado pelo CORS: Origem não permitida."));
+    // Se não houver origem (ex: ferramentas de teste) ou se a origem estiver na lista, permite
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+      return callback(null, true);
     }
+    return callback(new Error("Bloqueado pelo CORS: Origem não permitida."));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
