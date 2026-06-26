@@ -60,8 +60,16 @@ export class AuthController {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ erros: error.format() });
       }
-      return res.status(500).json({ erro: "Erro interno no servidor" });
-    }
+
+      // 🔍 PRINTA NO TERMINAL DA RAILWAY
+      console.error("❌ ERRO REAL NO LOGIN CAPTURADO:", error);
+
+      // 🛡️ ENVIA O ERRO REAL PARA A ABA NETWORK DO NAVEGADOR
+      return res.status(500).json({ 
+        erro: "Erro interno no servidor",
+        mensagemReal: error.message || String(error),
+        stack: error.stack
+      });}
   };
 
   loginWithGoogle = async (req: Request, res: Response): Promise<Response> => {
