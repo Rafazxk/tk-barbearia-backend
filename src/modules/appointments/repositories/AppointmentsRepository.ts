@@ -1,6 +1,6 @@
 import { db, appointmentsTable, appointmentServicesTable, servicesTable } from "../../../database/index.js";
-import { eq, and, gte, lt } from "drizzle-orm";
-import { type IAppointmentsRepository, type IAppointmentsFilters } from "../domain/IAppointmentsRepository.js";
+import { eq, and, gte, lt, sql } from "drizzle-orm";
+import { type IAppointmentsRepository, type IAppointmentsFilters } from "./IAppointmentsRepository.js";
 
 export class AppointmentsRepository implements IAppointmentsRepository {
   
@@ -8,11 +8,14 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     const conditions = [];
 
     if (filters?.date) {
-      const date = new Date(filters.date);
-      const nextDay = new Date(date);
-      nextDay.setDate(nextDay.getDate() + 1);
-      conditions.push(gte(appointmentsTable.dataHora, date));
-      conditions.push(lt(appointmentsTable.dataHora, nextDay));
+      const startOfDay = new Date(filters.date);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(filters.date);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+
+      conditions.push(gte(appointmentsTable.dataHora, startOfDay));
+      conditions.push(lt(appointmentsTable.dataHora, endOfDay));
     }
 
     if (filters?.barberId) {
@@ -55,8 +58,10 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async delete(id: number): Promise<boolean> {
-    const result = await db.delete(appointmentsTable).where(eq(appointmentsTable.id, id));
-    return true; // Se o banco não estourar erro, deu certo
+    // 👑 BLINDAGEM: Remove as amarras da tabela associativa primeiro para evitar erro de FK
+    await this.unlinkServices(id);
+    await db.delete(appointmentsTable).where(eq(appointmentsTable.id, id));
+    return true;
   }
 
   async linkServices(appointmentId: number, serviceIds: number[]): Promise<void> {
@@ -66,5 +71,40 @@ export class AppointmentsRepository implements IAppointmentsRepository {
 
   async unlinkServices(appointmentId: number): Promise<void> {
     await db.delete(appointmentServicesTable).where(eq(appointmentServicesTable.appointmentId, appointmentId));
+  }
+
+  // 🌟 IMPLEMENTAÇÃO DO DASHBOARD REAL VIA TRILHA SQL DRIZZLE
+  async getStatsToday(barberId: number) {
+    const now = new Date();
+    const startToday = new Date(now.setUTCHours(0,0,0,0));
+    const endToday = new Date(now.setUTCHours(23,59,59,999));
+
+    // Agendamentos de hoje
+    const [todayCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(appointmentsTable)
+      .where(and(
+        eq(appointmentsTable.barbeiroId, barberId),
+        gte(appointmentsTable.dataHora, startToday),
+        lt(appointmentsTable.dataHora, endToday)
+      ));
+
+    // Soma do faturamento do dia cruzando tabelas
+    const [revenue] = await db
+      .select({ total: sql<string>`sum(${servicesTable.preco})` })
+      .from(appointmentServicesTable)
+      .innerJoin(appointmentsTable, eq(appointmentServicesTable.appointmentId, appointmentsTable.id))
+      .innerJoin(servicesTable, eq(appointmentServicesTable.serviceId, servicesTable.id))
+      .where(and(
+        eq(appointmentsTable.barbeiroId, barberId),
+        gte(appointmentsTable.dataHora, startToday),
+        lt(appointmentsTable.dataHora, endToday)
+      ));
+
+    return {
+      appointmentsToday: Number(todayCount?.count || 0),
+      revenueToday: revenue?.total || "0.00",
+      appointmentsThisWeek: Number(todayCount?.count || 0) // Simplificado para o MVP de demonstração
+    };
   }
 }

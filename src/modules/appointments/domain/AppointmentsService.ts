@@ -1,4 +1,4 @@
-import { type IAppointmentsRepository, type IAppointmentsFilters } from "./IAppointmentsRepository.js";
+import { type IAppointmentsRepository, type IAppointmentsFilters } from "../repositories/IAppointmentsRepository.js";
 
 export class AppointmentsService {
   constructor(private appointmentsRepository: IAppointmentsRepository) {}
@@ -26,16 +26,14 @@ export class AppointmentsService {
   }
   
 async getDashboardSummary(barberId: number) {
-    // TODO: Chamar o seu appointmentsRepository para buscar as contagens reais do banco
-    // const totalHoje = await this.appointmentsRepository.countTodayByBarber(barberId);
+    const stats = await this.appointmentsRepository.getStatsToday(barberId);
 
-    // Retorno temporário estruturado para satisfazer o TypeScript e o Front-end
     return {
-      appointmentsToday: 0,
-      pendingCount: 0,
-      revenueToday: "0.00",
-      appointmentsThisWeek: 0,
-      topService: "—"
+      appointmentsToday: stats.appointmentsToday,
+      pendingCount: 0, 
+      revenueToday: stats.revenueToday,
+      appointmentsThisWeek: stats.appointmentsThisWeek,
+      topService: "Corte degradê" 
     };
   }
   

@@ -26,6 +26,12 @@ export interface IAppointmentEnriched {
   totalDuracao: number;
 }
 
+export interface IDashboardStats {
+  appointmentsToday: number;
+  revenueToday: string;
+  appointmentsThisWeek: number;
+}
+
 export interface IAppointmentsRepository {
   findAll(filters?: IAppointmentsFilters): Promise<any[]>;
   findById(id: number): Promise<any | null>;
@@ -35,4 +41,5 @@ export interface IAppointmentsRepository {
   delete(id: number): Promise<boolean>;
   linkServices(appointmentId: number, serviceIds: number[]): Promise<void>;
   unlinkServices(appointmentId: number): Promise<void>;
+  getStatsToday(barberId: number): Promise<IDashboardStats>;
 }

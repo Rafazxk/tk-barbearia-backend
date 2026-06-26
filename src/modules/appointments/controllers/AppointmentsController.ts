@@ -1,7 +1,6 @@
 import { type Request, type Response } from "express";
 import { z } from "zod";
 import { AppointmentsService } from "../domain/AppointmentsService.js";
-import { AppointmentsRepository } from "../repositories/AppointmentsRepository.js";
 
 const SummaryQueryParams = z.object({
   barberId: z.coerce.number({ message: "barberId precisa ser um número válido" })
@@ -21,30 +20,23 @@ const CreateAppointmentBody = z.object({
 });
 
 export class AppointmentController {
-  private appointmentsService: AppointmentsService;
+  // 👑 BLINDAGEM: Recebe o serviço de fora via Injeção de Dependência pura
+  constructor(private appointmentsService: AppointmentsService) {}
 
-  constructor() {
-    // Mantendo a injeção clássica que você estruturou
-    this.appointmentsService = new AppointmentsService(new AppointmentsRepository());
-  }
   summary = async (req: Request, res: Response): Promise<Response> => {
     const query = SummaryQueryParams.safeParse(req.query);
     if (!query.success) {
-    // 🛠️ Linha 33 corrigida: O Zod usa '.issues' em vez de '.errors'
-    return res.status(400).json({ error: query.error.issues[0]!.message });
-  }
+      return res.status(400).json({ error: query.error.issues[0]!.message });
+    }
 
     try {
       let targetBarberId = query.data.barberId;
 
-      // Regra de Negócio/Segurança: Se não for admin, ele só pode ver o resumo dele mesmo
       if (req.user?.role !== "admin" && req.user?.id) {
-      targetBarberId = req.user.id;
-    }
+        targetBarberId = req.user.id;
+      }
 
-      // Repassa o ID para o Service calcular as métricas do banco (Postgres/Prisma)
       const result = await this.appointmentsService.getDashboardSummary(targetBarberId);
-      
       return res.json(result);
     } catch (err) {
       console.error("Erro no summary controller:", err);
@@ -57,7 +49,6 @@ export class AppointmentController {
     if (!query.success) return res.status(400).json({ error: query.error.message });
 
     try {
-      // Criamos um filtro limpo sem mutar diretamente o objeto do Zod
       const filters = { ...query.data };
 
       if (req.user?.role !== "admin") {
@@ -94,7 +85,6 @@ export class AppointmentController {
     if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
     try {
-      // Cria uma cópia com o barbeiro correto baseado no Token se não for Admin
       const appointmentData = {
         ...parsed.data,
         barbeiroId: req.user?.role !== "admin" ? req.user!.id : parsed.data.barbeiroId,
