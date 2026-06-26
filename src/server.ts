@@ -13,21 +13,25 @@ const PORT = process.env.PORT || 3000;
 // 🌐 1. Lista de origens permitidas (Local e Produção)
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://tk-barbearia.vercel.app"
+  "https://tk-barbearia.vercel.app",
+  "https://tk-barbearia-9vq9otdks-rafazxks-projects.vercel.app"
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite requisições sem origem (como ferramentas de teste, mobile ou insomnia)
+    // Permite requisições sem origem (como ferramentas de teste)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.includes(origin)) {
+    // Verifica se a origem está na lista ou se termina com '.vercel.app'
+    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".vercel.app");
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
       callback(new Error("Bloqueado pelo CORS: Origem não permitida."));
     }
   },
-  credentials: true, 
+  credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Cookie"]
 }));
