@@ -5,13 +5,16 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Se não houver a string de conexão no arquivo .env, o sistema avisa na hora
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL não foi encontrada nas variáveis de ambiente (.env)");
 }
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
+  // 🚨 CRÍTICO PARA PRODUÇÃO: Habilita o SSL necessário na nuvem (Railway)
+  ssl: process.env.NODE_ENV === "production" 
+    ? { rejectUnauthorized: false } 
+    : false,
 });
 
 export const db = drizzle(pool, { schema });
