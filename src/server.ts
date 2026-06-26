@@ -14,22 +14,26 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   "http://localhost:5173",
   "https://tk-barbearia.vercel.app",
-  "https://tk-barbearia-9vq9otdks-rafazxks-projects.vercel.app"
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Se não houver origem (ex: ferramentas de teste) ou se a origem estiver na lista, permite
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
-      return callback(null, true);
+    // Permite requisições sem origem (como ferramentas de teste/Insomnia/Postman)
+    if (!origin) return callback(null, true);
+    
+    // Verifica se a origem está na lista fixa OU se é um subdomínio da Vercel
+    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".vercel.app");
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error("Bloqueado pelo CORS: Origem não permitida."));
     }
-    return callback(new Error("Bloqueado pelo CORS: Origem não permitida."));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Cookie"]
 }));
-
 app.use(express.json());
 app.use(cookieParser());
 
