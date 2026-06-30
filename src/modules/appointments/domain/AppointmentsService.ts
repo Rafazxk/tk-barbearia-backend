@@ -1,8 +1,16 @@
 import { type IAppointmentsRepository, type IAppointmentsFilters } from "../repositories/IAppointmentsRepository.js";
+import { SocketService } from "../../../shared/SocketService.js";
 
 export class AppointmentsService {
   constructor(private appointmentsRepository: IAppointmentsRepository) {}
 
+  async getFrequentClients(barberId?: number) {
+    // Chama a query agregadora do Drizzle que criamos no passo anterior
+    const frequentClients = await this.appointmentsRepository.findFrequentClients(barberId);
+    
+    return frequentClients;
+  }
+  
   // Helper privado para enriquecer agendamentos (reaproveitando o código antigo de soma)
   private async enrich(baseAppointments: any[]) {
     return await Promise.all(
@@ -48,8 +56,10 @@ async getDashboardSummary(barberId: number) {
     const [enriched] = await this.enrich([appointment]);
     return enriched;
   }
-
-  // Ajustado aqui: adicionado "| undefined" para casar perfeitamente com o Zod e o tsconfig
+async listByClientPhone(phone: string) {
+  // O service apenas delega a chamada para o repositório
+  return await this.appointmentsRepository.listByClientPhone(phone);
+}
   async createAppointment(data: { 
     clienteNome: string; 
     clienteTelefone: string; 
@@ -57,6 +67,7 @@ async getDashboardSummary(barberId: number) {
     barbeiroId: number; 
     servicoIds?: number[] | undefined; 
   }) {
+    // 1. Cria o agendamento base no banco de dados
     const appointment = await this.appointmentsRepository.create({
       clienteNome: data.clienteNome,
       clienteTelefone: data.clienteTelefone,
@@ -64,11 +75,30 @@ async getDashboardSummary(barberId: number) {
       barbeiroId: data.barbeiroId,
     });
 
+    // 2. Vincula os serviços se eles existirem
     if (data.servicoIds?.length) {
       await this.appointmentsRepository.linkServices(appointment.id, data.servicoIds);
     }
 
+    // 3. Enriquece o agendamento (calcula totais e busca nomes dos serviços)
     const [result] = await this.enrich([appointment]);
+
+    if(!result) throw new Error("Erro ao enriquecer o agendamento.");
+
+    // 4. DISPARO EM TEMPO REAL: Notifica o barbeiro específico com os dados completos
+    SocketService.sendNotificationToBarber(
+      result.barbeiroId,
+      "new-appointment",
+      {
+        id: result.id,
+        clienteNome: result.clienteNome,
+        dataHora: result.dataHora,
+        totalPreco: result.totalPreco,
+        totalDuracao: result.totalDuracao,
+        servicos: result.servicos.map((s: any) => s.nome) // Envia uma lista legível de nomes (ex: ["Corte", "Barba"])
+      }
+    );
+
     return result;
   }
 

@@ -5,6 +5,7 @@ import { type IBarbersRepository } from "../repositories/IBarbersRepository.js";
 
 import { OAuth2Client } from "google-auth-library";
 
+
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const RegisterBodySchema = z.object({
@@ -61,6 +62,11 @@ export class AuthService {
       token
     };
   }
+
+async listAllBarbers() {
+  // Chamada limpa isolando o Drizzle dentro do repositório
+  return await this.barbersRepository.listBarbers();
+}
 
   async register(dados: RegisterInput) {
     const barbeiroExistente = await this.barbersRepository.findByEmail(dados.email);

@@ -13,10 +13,10 @@ const GoogleLoginBodySchema = z.object({
 
 export class AuthController {
   
-  // tira do Controller a responsabilidade de saber criar instâncias de banco de dados
+  // Tira do Controller a responsabilidade de saber criar instâncias de banco de dados
   constructor(private authService: AuthService) {}
 
-// Helper privado para centralizar a criação do cookie seguro
+  // Helper privado para centralizar a criação do cookie seguro
   private setAuthCookie(res: Response, token: string) {
     res.cookie("token", token, {
       httpOnly: true,
@@ -25,6 +25,7 @@ export class AuthController {
       maxAge: 24 * 60 * 60 * 1000 
     });
   }
+
   // POST /auth/register
   register = async (req: Request, res: Response): Promise<any> => {
     try {
@@ -40,6 +41,21 @@ export class AuthController {
     }
   };
 
+  // GET /auth/barbers
+  // 👇 CORRIGIDO: Agora usa Arrow Function para blindar o 'this' e busca através do Service
+  listBarbers = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      // Delegando a responsabilidade de buscar os dados para o AuthService
+      const barbers = await this.authService.listAllBarbers();
+
+      return res.json(barbers);
+    } catch (error: any) {
+      console.error("Erro ao listar barbeiros:", error);
+      return res.status(500).json({ error: error.message || "Erro interno ao buscar profissionais." });
+    }
+  };
+
+  // POST /auth/login
   login = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { email, password } = LoginBodySchema.parse(req.body);
@@ -62,6 +78,7 @@ export class AuthController {
     }
   };
 
+  // POST /auth/login-google
   loginWithGoogle = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { token } = GoogleLoginBodySchema.parse(req.body);

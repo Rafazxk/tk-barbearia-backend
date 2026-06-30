@@ -1,8 +1,34 @@
 import { db, appointmentsTable, appointmentServicesTable, servicesTable } from "../../../database/index.js";
-import { eq, and, gte, lt, sql } from "drizzle-orm";
+import { eq, and, gte, lte,  lt, sql } from "drizzle-orm";
 import { type IAppointmentsRepository, type IAppointmentsFilters } from "./IAppointmentsRepository.js";
 
 export class AppointmentsRepository implements IAppointmentsRepository {
+
+  async findFrequentClients(barberId?: number) {
+    const conditions = [];
+
+    if (barberId) {
+      conditions.push(eq(appointmentsTable.barbeiroId, barberId));
+    }
+
+    return await db
+      .select({
+        id: sql<string>`md5(${appointmentsTable.clienteTelefone})`,
+        nome: appointmentsTable.clienteNome,
+        telefone: appointmentsTable.clienteTelefone,
+        totalCortes: sql<number>`count(distinct ${appointmentsTable.id})::int`,
+        ultimoCorte: sql<string>`max(${appointmentsTable.dataHora})::text`,
+        totalGasto: sql<number>`coalesce(sum(${servicesTable.preco}), 0)::float`
+      })
+      .from(appointmentsTable)
+      .leftJoin(appointmentServicesTable, eq(appointmentServicesTable.appointmentId, appointmentsTable.id))
+      .leftJoin(servicesTable, eq(appointmentServicesTable.serviceId, servicesTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(appointmentsTable.clienteNome, appointmentsTable.clienteTelefone)
+      .having(sql`count(distinct ${appointmentsTable.id}) >= 2`)
+      // 🔝 CORREÇÃO AQUI: Ordena diretamente pelo COUNT em vez do alias de texto
+      .orderBy(sql`count(distinct ${appointmentsTable.id}) DESC`);
+  }
   
   async findAll(filters?: IAppointmentsFilters) {
     const conditions = [];
@@ -32,8 +58,27 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   async findById(id: number) {
     const [appointment] = await db.select().from(appointmentsTable).where(eq(appointmentsTable.id, id));
     return appointment || null;
-  }
+  } 
 
+async findByDate(barberId: number, dateStr: string) {
+  // dateStr vem do front como "2026-06-26"
+  
+  // Criamos o início do dia às 00:00:00 e o fim às 23:59:59 na data recebida
+  const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
+  const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+
+  return db
+    .select()
+    .from(appointmentsTable)
+    .where(
+      and(
+        eq(appointmentsTable.barbeiroId, barberId),
+        // Garante que pega qualquer hora dentro daquele dia específico
+        gte(appointmentsTable.dataHora, startOfDay),
+        lte(appointmentsTable.dataHora, endOfDay)
+      )
+    );
+}
   async findServicesByAppointmentId(appointmentId: number) {
     return await db
       .select({

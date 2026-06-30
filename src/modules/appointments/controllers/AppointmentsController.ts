@@ -1,4 +1,4 @@
-import { type Request, type Response } from "express";
+import { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { AppointmentsService } from "../domain/AppointmentsService.js";
 
@@ -11,6 +11,7 @@ const ListAppointmentsQueryParams = z.object({
   barberId: z.coerce.number().optional(),
 });
 
+// Schema original do Admin
 const CreateAppointmentBody = z.object({
   clienteNome: z.string().min(1, "Nome é obrigatório"),
   clienteTelefone: z.string().min(1, "Telefone é obrigatório"),
@@ -19,9 +20,76 @@ const CreateAppointmentBody = z.object({
   servicoIds: z.array(z.number()).optional(),
 });
 
+// 👇 1. NOVO SCHEMA: Customizado para receber os produtos que o cliente escolhe na Home
+const CreateClientBookingBody = z.object({
+  clienteNome: z.string().min(1, "Nome é obrigatório"),
+  clienteTelefone: z.string().min(1, "Telefone é obrigatório"),
+  dataHora: z.string().min(1, "Data e hora são obrigatórias"),
+  
+  // 👑 COERCE: Transforma string "1" em número 1 automaticamente se o front vacilar
+  barbeiroId: z.coerce.number({ message: "barbeiroId precisa ser um número válido" }),
+  
+  // Tolera receber array de IDs numéricos ou convertidos
+  servicoIds: z.array(z.coerce.number()).default([]),
+  
+  // Deixa o objeto de produtos blindado e opcional
+  produtosReservados: z.array(
+    z.object({
+      id: z.coerce.number(),
+      quantidade: z.coerce.number()
+    })
+  ).optional().default([])
+});
+
 export class AppointmentController {
-  // 👑 BLINDAGEM: Recebe o serviço de fora via Injeção de Dependência pura
   constructor(private appointmentsService: AppointmentsService) {}
+
+  // 👇 2. MÉTODO NOVO: Criação pública vinda do app do cliente
+  createClientBooking = async (req: Request, res: Response): Promise<Response> => {
+    const parsed = CreateClientBookingBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Dados de agendamento inválidos", detalhes: parsed.error.format() });
+    }
+
+    try {
+      // Repassa direto para o service processar o agendamento + reserva de produtos
+      const result = await this.appointmentsService.createAppointment(parsed.data);
+      return res.status(201).json(result);
+    } catch (err: any) {
+      console.error("❌ ERRO NO AGENDAMENTO DO CLIENTE:", err);
+      return res.status(500).json({ error: "Erro interno ao processar agendamento.", details: err.message });
+    }
+  };
+
+  // 👇 3. MÉTODO NOVO: Busca o histórico pelo WhatsApp do cliente de forma pública
+  getClientAppointments = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { phone } = req.params;
+
+      if (!phone || typeof phone !== "string") {
+      return res.status(400).json({ error: "Telefone inválido ou não informado." });
+    }
+
+      // Garanta que seu service implemente esse método de busca por telefone
+      const result = await this.appointmentsService.listByClientPhone(phone);
+      return res.json(result);
+    } catch (err: any) {
+      console.error("❌ ERRO AO BUSCAR AGENDAMENTOS DO CELULAR:", err);
+      return res.status(500).json({ error: "Erro ao carregar histórico." });
+    }
+  };
+
+  async getFrequentClients(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { barberId } = req.query;
+      const parsedBarberId = barberId ? Number(barberId) : undefined;
+      const clients = await this.appointmentsService.getFrequentClients(parsedBarberId);
+      return res.json(clients);
+    } catch (error) {
+      console.error("Erro ao buscar clientes frequentes:", error);
+      next(error);
+    }
+  }
 
   summary = async (req: Request, res: Response): Promise<Response> => {
     const query = SummaryQueryParams.safeParse(req.query);
@@ -31,11 +99,9 @@ export class AppointmentController {
 
     try {
       let targetBarberId = query.data.barberId;
-
       if (req.user?.role !== "admin" && req.user?.id) {
         targetBarberId = req.user.id;
       }
-
       const result = await this.appointmentsService.getDashboardSummary(targetBarberId);
       return res.json(result);
     } catch (err) {
@@ -50,11 +116,9 @@ export class AppointmentController {
 
     try {
       const filters = { ...query.data };
-
       if (req.user?.role !== "admin") {
         filters.barberId = req.user?.id;
       }
-
       const result = await this.appointmentsService.list(filters);
       return res.json(result);
     } catch (err) {
@@ -80,6 +144,7 @@ export class AppointmentController {
     }
   };
 
+  // Mantém intacto para criação de agendamento por dentro do Admin
   create = async (req: Request, res: Response): Promise<Response> => {
     const parsed = CreateAppointmentBody.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
@@ -93,7 +158,8 @@ export class AppointmentController {
       const result = await this.appointmentsService.createAppointment(appointmentData);
       return res.status(201).json(result);
     } catch (err) {
-      return res.status(500).json({ error: "Internal server error" });
+      console.error("ERRO COMPLETO DO BACKEND:", err);
+      return res.status(500).json({ error: "Internal server error", details: err });
     }
   };
 

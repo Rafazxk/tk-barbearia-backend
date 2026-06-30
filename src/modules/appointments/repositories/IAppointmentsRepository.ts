@@ -42,4 +42,5 @@ export interface IAppointmentsRepository {
   linkServices(appointmentId: number, serviceIds: number[]): Promise<void>;
   unlinkServices(appointmentId: number): Promise<void>;
   getStatsToday(barberId: number): Promise<IDashboardStats>;
+  findFrequentClients(barberId?: number): Promise<any[]>;
 }

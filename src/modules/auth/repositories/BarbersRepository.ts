@@ -18,6 +18,27 @@ export class BarbersRepository implements IBarbersRepository {
       role: barber.role ?? "barber" // garante que seja string
     }
   }
+async listBarbers(): Promise<IBarberDTO[]> {
+  const result = await db
+    .select({
+      id: barbersTable.id,
+      nome: barbersTable.nome,
+      email: barbersTable.email,
+      foto: barbersTable.foto,
+      role: barbersTable.role,
+    })
+    .from(barbersTable);
+
+  // Garante o mapeamento correto e o fallback do role para string válida
+  return result.map((b) => ({
+    id: b.id,
+    nome: b.nome,
+    email: b.email,
+    foto: b.foto,
+    role: b.role ?? "barber",
+  }));
+}
+
 
   async create(dados: RegisterInput & { passwordHash: string }): Promise<IBarberDTO | null> {
     const [novoBarbeiro] = await db

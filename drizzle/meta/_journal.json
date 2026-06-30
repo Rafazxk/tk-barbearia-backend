@@ -8,6 +8,13 @@
       "when": 1781785076203,
       "tag": "0000_slippery_paladin",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782595338123,
+      "tag": "0001_clumsy_steve_rogers",
+      "breakpoints": true
     }
   ]
 }
