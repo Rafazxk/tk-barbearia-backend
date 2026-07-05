@@ -56,10 +56,12 @@ async getDashboardSummary(barberId: number) {
     const [enriched] = await this.enrich([appointment]);
     return enriched;
   }
+
 async listByClientPhone(phone: string) {
   // O service apenas delega a chamada para o repositório
   return await this.appointmentsRepository.listByClientPhone(phone);
 }
+
   async createAppointment(data: { 
     clienteNome: string; 
     clienteTelefone: string; 
@@ -126,4 +128,9 @@ async listByClientPhone(phone: string) {
   async deleteAppointment(id: number) {
     return await this.appointmentsRepository.delete(id);
   }
+
+  async listAvailableSlots(barberId: number, date: string) {
+    const availableSlots = await this.appointmentsRepository.findAvailableSlots(barberId, date);
+    return availableSlots;
+  } 
 }

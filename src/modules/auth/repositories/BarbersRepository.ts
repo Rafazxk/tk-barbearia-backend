@@ -1,5 +1,5 @@
 import { db } from "../../../database/index.js";
-import { barbersTable } from "../../../database/schema.js";
+import { barbersTable } from "../../../database/schema/barber.schema.js";
 import { eq } from "drizzle-orm";
 import { type RegisterInput } from "../domain/AuthService.js";
 import { type IBarbersRepository, type IBarberDTO } from "./IBarbersRepository.js";
@@ -58,4 +58,23 @@ async listBarbers(): Promise<IBarberDTO[]> {
       role: novoBarbeiro.role ?? "barber"
     }
   }
+
+  async updateFoto(id: number, fotoUrl: string): Promise<IBarberDTO> {
+  const [barberAtualizado] = await db
+    .update(barbersTable)
+    .set({
+      foto: fotoUrl, // Atualiza o campo 'foto' com o caminho do arquivo
+    })
+    .where(eq(barbersTable.id, Number(id))) // Filtra pelo ID do barbeiro
+    .returning();
+
+  if (!barberAtualizado) {
+    throw new Error("Barbeiro não encontrado para atualizar a foto.");
+  }
+
+  return {
+    ...barberAtualizado,
+    role: barberAtualizado.role ?? "barber"
+  };
+}
 }

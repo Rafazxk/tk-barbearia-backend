@@ -1,6 +1,7 @@
-import { db, appointmentsTable, appointmentServicesTable, servicesTable } from "../../../database/index.js";
-import { eq, and, gte, lte,  lt, sql } from "drizzle-orm";
+import { db, appointmentsTable, appointmentServicesTable, servicesTable, barbersTable } from "../../../database/index.js";
+import { eq, and, gte, lte, lt, sql } from "drizzle-orm";
 import { type IAppointmentsRepository, type IAppointmentsFilters } from "./IAppointmentsRepository.js";
+import { type IClientAppointment } from "./IClienteRepository.js";
 
 export class AppointmentsRepository implements IAppointmentsRepository {
 
@@ -29,7 +30,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
       // 🔝 CORREÇÃO AQUI: Ordena diretamente pelo COUNT em vez do alias de texto
       .orderBy(sql`count(distinct ${appointmentsTable.id}) DESC`);
   }
-  
+
   async findAll(filters?: IAppointmentsFilters) {
     const conditions = [];
 
@@ -58,38 +59,87 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   async findById(id: number) {
     const [appointment] = await db.select().from(appointmentsTable).where(eq(appointmentsTable.id, id));
     return appointment || null;
-  } 
+  }
 
-async findByDate(barberId: number, dateStr: string) {
-  // dateStr vem do front como "2026-06-26"
-  
-  // Criamos o início do dia às 00:00:00 e o fim às 23:59:59 na data recebida
-  const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-  const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+  async findByDate(barberId: number, dateStr: string) {
+    // dateStr vem do front como "2026-06-26"
 
-  return db
-    .select()
-    .from(appointmentsTable)
-    .where(
-      and(
-        eq(appointmentsTable.barbeiroId, barberId),
-        // Garante que pega qualquer hora dentro daquele dia específico
-        gte(appointmentsTable.dataHora, startOfDay),
-        lte(appointmentsTable.dataHora, endOfDay)
-      )
-    );
-}
+    // Criamos o início do dia às 00:00:00 e o fim às 23:59:59 na data recebida
+    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+
+    return db
+      .select()
+      .from(appointmentsTable)
+      .where(
+        and(
+          eq(appointmentsTable.barbeiroId, barberId),
+          // Garante que pega qualquer hora dentro daquele dia específico
+          gte(appointmentsTable.dataHora, startOfDay),
+          lte(appointmentsTable.dataHora, endOfDay)
+        )
+      );
+  }
+
   async findServicesByAppointmentId(appointmentId: number) {
     return await db
       .select({
         id: servicesTable.id,
-        nome: servicesTable.nome, 
+        nome: servicesTable.nome,
         preco: servicesTable.preco,
         duracaoMinutos: servicesTable.duracaoMinutos,
       })
       .from(appointmentServicesTable)
       .innerJoin(servicesTable, eq(appointmentServicesTable.serviceId, servicesTable.id))
       .where(eq(appointmentServicesTable.appointmentId, appointmentId));
+  }
+  // telefone
+
+  async listByClientPhone(clientPhone: string): Promise<IClientAppointment[]> {
+    const appointments = await db.query.appointmentsTable.findMany({
+
+      where: eq(appointmentsTable.clienteTelefone, clientPhone),
+
+      with: {
+        barber: true,
+
+        services: {
+          with: {
+            service: true,
+          },
+        },
+      },
+    });
+
+    return appointments.map((appointment) => {
+      const servicos = appointment.services.map(({ service }) => ({
+        id: service.id,
+        nome: service.nome,
+        preco: Number(service.preco),
+        duracaoMinutos: service.duracaoMinutos,
+      }));
+
+      const totalPreco = servicos.reduce(
+        (total, servico) => total + servico.preco,
+        0
+      );
+
+      return {
+        id: appointment.id,
+        clienteNome: appointment.clienteNome,
+        clienteTelefone: appointment.clienteTelefone,
+        dataHora: appointment.dataHora,
+
+        barbeiro: {
+          id: appointment.barber.id,
+          nome: appointment.barber.nome,
+        },
+
+        servicos,
+
+        totalPreco,
+      };
+    });
   }
 
   async create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number }) {
@@ -109,6 +159,7 @@ async findByDate(barberId: number, dateStr: string) {
     return true;
   }
 
+
   async linkServices(appointmentId: number, serviceIds: number[]): Promise<void> {
     const valuesToInsert = serviceIds.map((serviceId) => ({ appointmentId, serviceId }));
     await db.insert(appointmentServicesTable).values(valuesToInsert);
@@ -121,8 +172,8 @@ async findByDate(barberId: number, dateStr: string) {
   // 🌟 IMPLEMENTAÇÃO DO DASHBOARD REAL VIA TRILHA SQL DRIZZLE
   async getStatsToday(barberId: number) {
     const now = new Date();
-    const startToday = new Date(now.setUTCHours(0,0,0,0));
-    const endToday = new Date(now.setUTCHours(23,59,59,999));
+    const startToday = new Date(now.setUTCHours(0, 0, 0, 0));
+    const endToday = new Date(now.setUTCHours(23, 59, 59, 999));
 
     // Agendamentos de hoje
     const [todayCount] = await db
@@ -151,5 +202,27 @@ async findByDate(barberId: number, dateStr: string) {
       revenueToday: revenue?.total || "0.00",
       appointmentsThisWeek: Number(todayCount?.count || 0) // Simplificado para o MVP de demonstração
     };
+  }
+
+  async findAvailableSlots(barberId: number, date: string) {
+    if (!barberId) {
+      throw new Error("barberId is required to find available slots.");
+    }
+    const startOfDay = new Date(`${date}T00:00:00.000Z`);
+    const endOfDay = new Date(`${date}T23:59:59.999Z`);
+
+    const bookedAppointments = await this.findByDate(barberId, date);
+
+    const bookedTimes = bookedAppointments.map(app => app.dataHora.toISOString());
+
+    const allSlots = [];
+    for (let hour = 9; hour <= 17; hour++) {
+      const slotTime = new Date(startOfDay);
+      slotTime.setUTCHours(hour, 0, 0, 0);
+      if (!bookedTimes.includes(slotTime.toISOString())) {
+        allSlots.push(slotTime.toISOString());
+      }
+    }
+    return allSlots;
   }
 }

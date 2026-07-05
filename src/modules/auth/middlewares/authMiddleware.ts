@@ -20,6 +20,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   
   const token = req.cookies?.token || req.headers.authorization?.split(" ")[1];
 
+  if (req.originalUrl.includes("/appointments/client/")) {
+    return next();
+  }
+  
   // 🚨 Blindagem extra: impede strings como "undefined", "null" ou espaços vazios
   if (!token || token === "undefined" || token === "null" || token.trim() === "") {
     return res.status(401).json({ erro: "Token de autenticação não fornecido" });

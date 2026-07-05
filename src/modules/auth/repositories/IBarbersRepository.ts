@@ -13,4 +13,5 @@ export interface IBarbersRepository {
   findByEmail(email: string): Promise<IBarberDTO | null>;
   create(dados: RegisterInput & { passwordHash: string }): Promise<IBarberDTO | null>;
   listBarbers(): Promise<IBarberDTO[]>;
+  updateFoto(id: number, fotoUrl: string): Promise<IBarberDTO>;
 }

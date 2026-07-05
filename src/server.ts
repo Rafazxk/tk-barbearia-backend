@@ -2,25 +2,27 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
-import { createServer } from "http"; // 🔌 Importação necessária para o Socket
+import { createServer } from "http"; 
 import { appointmentRoutes } from "./modules/appointments/routes/appointmentRoutes.js";
 import { authRouter } from "./modules/auth/routes/authRouter.js"; 
 import { whatsappRoutes } from "./modules/whatsapp/routes/WhatsappRoutes.js";
-import { SocketService } from "./shared/SocketService.js"; // ⚡ Seu serviço de socket
+import { SocketService } from "./shared/SocketService.js"; 
 import { categoryRoutes } from "./modules/appointments/routes/categoriesRoutes.js";
 import { productRoutes } from "./modules/appointments/routes/productsRoutes.js";
 import { scheduleBlocksRoutes } from "./modules/appointments/routes/scheduleBlocksRoutes.js";
 import { businessHoursRoutes } from "./modules/appointments/routes/businessHoursRoutes.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔌 Criamos o servidor HTTP envelopando o Express
 const httpServer = createServer(app);
 
-// 🌐 1. Lista de origens permitidas (Local e Produção)
 const allowedOrigins = [
   "http://localhost:5173",
   "https://tk-barbearia.vercel.app",
@@ -46,11 +48,12 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// ⚡ INICIALIZA O SOCKET.IO ATRELADO AO SERVIDOR HTTP
-// Passamos a lista de origens permitidas para o Socket também não dar erro de CORS
+app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
+
+app.use("/api/appointments", appointmentRoutes);
+
 SocketService.init(httpServer, allowedOrigins);
 
-// Rotas do Sistema
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/auth", authRouter); 
 app.use("/api/barber", whatsappRoutes);
@@ -63,7 +66,6 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "online", message: "Servidor voando baixo!" });
 });
 
-// 🚨 IMPORTANTE: Agora quem escuta a porta é o 'httpServer', não mais o 'app'
 httpServer.listen(PORT, () => {
   console.log(`🚀 Servidor e WebSockets voando baixo na porta: ${PORT}`);
 });

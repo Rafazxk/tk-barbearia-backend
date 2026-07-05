@@ -11,20 +11,29 @@ const appointmentsRepository = new AppointmentsRepository();
 const appointmentsService = new AppointmentsService(appointmentsRepository);
 const appointmentController = new AppointmentController(appointmentsService);
 
-// ==========================================
-// 🔓 ROTAS PÚBLICAS (O cliente acessa sem login)
-// ==========================================
+// ROTAS PÚBLICAS 
 
-// 👇 Adicione a rota que o frontend estava procurando!
 appointmentRoutes.post("/client-booking", appointmentController.createClientBooking);
 
-// 👇 Aproveita e já deixa a de buscar agendamentos pelo celular pronta e pública
-appointmentRoutes.get("/client/:phone", appointmentController.getClientAppointments);
+appointmentRoutes.get(
+  "/client/:phone", 
+  appointmentController.getClientAppointments
+);
 
+// appointmentRoutes.get(
+//   "/client/",
+//  appointmentController.getClientAppointments
+// );
 
-// ==========================================
-// 🔒 ROTAS PROTEGIDAS (Apenas Admin/Barbeiro logado)
-// ==========================================
+appointmentRoutes.patch("/client/:id", appointmentController.updateClientBooking); // Nova rota de edição pública
+appointmentRoutes.delete("/client/:id", appointmentController.deleteClientBooking);
+
+appointmentRoutes.get("/available", (req, res, next) => {
+  appointmentController.listAvailable(req, res, next);
+});
+
+//  ROTAS PROTEGIDAS - Apenas Barbeiro logado
+
 appointmentRoutes.use(authMiddleware);
 
 appointmentRoutes.get("/frequent-clients", (req, res, next) => {

@@ -1,5 +1,5 @@
 import { db } from "../../../database/index.js"; 
-import { whatsappSettingsTable } from "../../../database/schema.js";
+import { whatsappSettingsTable } from "../../../database/schema/whatsapp.schema.js";
 import { eq } from "drizzle-orm";
 import { type IWhatsappRepository } from "./IWhatsappRepository.js";
  

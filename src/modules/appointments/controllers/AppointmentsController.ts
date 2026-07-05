@@ -1,6 +1,7 @@
 import { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { AppointmentsService } from "../domain/AppointmentsService.js";
+import { error } from "console";
 
 const SummaryQueryParams = z.object({
   barberId: z.coerce.number({ message: "barberId precisa ser um número válido" })
@@ -42,36 +43,30 @@ const CreateClientBookingBody = z.object({
 });
 
 export class AppointmentController {
-  constructor(private appointmentsService: AppointmentsService) {}
+  constructor(private appointmentsService: AppointmentsService) {
+    this.listAvailable = this.listAvailable.bind(this);
+    this.createClientBooking = this.createClientBooking.bind(this);
+  }
 
   // 👇 2. MÉTODO NOVO: Criação pública vinda do app do cliente
-  createClientBooking = async (req: Request, res: Response): Promise<Response> => {
-    const parsed = CreateClientBookingBody.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Dados de agendamento inválidos", detalhes: parsed.error.format() });
-    }
 
-    try {
-      // Repassa direto para o service processar o agendamento + reserva de produtos
-      const result = await this.appointmentsService.createAppointment(parsed.data);
-      return res.status(201).json(result);
-    } catch (err: any) {
-      console.error("❌ ERRO NO AGENDAMENTO DO CLIENTE:", err);
-      return res.status(500).json({ error: "Erro interno ao processar agendamento.", details: err.message });
-    }
-  };
 
   // 👇 3. MÉTODO NOVO: Busca o histórico pelo WhatsApp do cliente de forma pública
   getClientAppointments = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { phone } = req.params;
-
+      const { barberId } = req.query;
+      
       if (!phone || typeof phone !== "string") {
       return res.status(400).json({ error: "Telefone inválido ou não informado." });
     }
 
+              
       // Garanta que seu service implemente esse método de busca por telefone
       const result = await this.appointmentsService.listByClientPhone(phone);
+
+      console.log(JSON.stringify(result, null, 2));
+      
       return res.json(result);
     } catch (err: any) {
       console.error("❌ ERRO AO BUSCAR AGENDAMENTOS DO CELULAR:", err);
@@ -156,7 +151,7 @@ export class AppointmentController {
       };
 
       const result = await this.appointmentsService.createAppointment(appointmentData);
-      return res.status(201).json(result);
+      return res.status(201).json({ message: "Agendamento criado com sucesso!", result });
     } catch (err) {
       console.error("ERRO COMPLETO DO BACKEND:", err);
       return res.status(500).json({ error: "Internal server error", details: err });
@@ -164,23 +159,28 @@ export class AppointmentController {
   };
 
   update = async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const id = Number(req.params.id);
-      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  try {
+    const id = Number(req.params.id);
 
-      const appointment = await this.appointmentsService.getById(id);
-      if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+    console.log("Update Appointment ->", { id, body: req.body });
 
-      if (req.user?.role !== "admin" && appointment.barbeiroId !== req.user?.id) {
-        return res.status(403).json({ error: "Você não tem permissão para alterar este agendamento" });
-      }
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-      const result = await this.appointmentsService.updateAppointment(id, req.body);
-      return res.json(result);
-    } catch (err) {
-      return res.status(500).json({ error: "Internal server error" });
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({ error: "Nenhum dado enviado para atualização." });
     }
-  };
+    // --------------------------------
+
+    const appointment = await this.appointmentsService.getById(id);
+    if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+
+    const result = await this.appointmentsService.updateAppointment(id, req.body);
+    return res.json(result);
+  } catch (err) {
+    console.error("ERRO DETALHADO NO BACKEND:", { error: err });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
 
   delete = async (req: Request, res: Response): Promise<Response> => {
     try {
@@ -200,4 +200,71 @@ export class AppointmentController {
       return res.status(500).json({ error: "Internal server error" });
     }
   };
+
+  createClientBooking = async (req: Request, res: Response): Promise<Response> => {
+    const parsed = CreateClientBookingBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Dados de agendamento inválidos", detalhes: parsed.error.format() });
+    }
+
+    try {
+      // Repassa direto para o service processar o agendamento + reserva de produtos
+      const result = await this.appointmentsService.createAppointment(parsed.data);
+      return res.status(201).json(result);
+    } catch (err: any) {
+      console.error("❌ ERRO NO AGENDAMENTO DO CLIENTE:", err);
+      return res.status(500).json({ error: "Erro interno ao processar agendamento.", details: err.message });
+    }
+  };
+  
+  // 👇 NOVO MÉTODO: Atualiza agendamento do cliente de forma públic
+  updateClientBooking = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const id = Number(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+      const appointment = await this.appointmentsService.getById(id);
+      if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+
+      const result = await this.appointmentsService.updateAppointment(id, req.body);
+      return res.json({ message: "Agendamento atualizado com sucesso!", result });
+    } catch (err) {
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  };
+
+  deleteClientBooking = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const id = Number(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      const appointment = await this.appointmentsService.getById(id);
+      if (!appointment) return res.status(404).json({ error: "Appointment not found" });
+      await this.appointmentsService.deleteAppointment(id);
+      return res.status(204).send();
+    } catch (err) {
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  async listAvailable(req: Request, res: Response, next: NextFunction): Promise<Response> {
+    try {
+      const { date, barberId } = req.query;
+      
+      if (!date || typeof date !== "string") {
+        return res.status(400).json({ error: "Data inválida ou não informada." });
+      }
+      
+      const parsedBarberId = barberId ? Number(barberId) : undefined;
+
+      if (parsedBarberId === undefined || isNaN(parsedBarberId)) {
+        return res.status(400).json({ error: "barberId inválido ou não informado." });
+      }
+
+      const availableSlots = await this.appointmentsService.listAvailableSlots(parsedBarberId, date);
+      return res.json(availableSlots);
+    } catch (err) {
+      console.error("❌ ERRO AO LISTAR HORÁRIOS DISPONÍVEIS:", err);
+      return res.status(500).json({ error: "Erro interno ao listar horários disponíveis." });
+    }
+  }
 }

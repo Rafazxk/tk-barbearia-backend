@@ -1,3 +1,5 @@
+import type { IClientAppointment } from "./IClienteRepository.js";
+
 export interface IAppointmentInput {
   clienteNome: string;
   clienteTelefone: string;
@@ -43,4 +45,6 @@ export interface IAppointmentsRepository {
   unlinkServices(appointmentId: number): Promise<void>;
   getStatsToday(barberId: number): Promise<IDashboardStats>;
   findFrequentClients(barberId?: number): Promise<any[]>;
+  listByClientPhone(clientPhone: string): Promise<IClientAppointment[]>;
+  findAvailableSlots(barberId: number, date: string): Promise<string[]>;
 }
