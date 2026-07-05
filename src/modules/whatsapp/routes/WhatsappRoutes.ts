@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { WhatsappController } from "../controllers/whatsappController.js";
+import { WhatsappController } from "../controllers/WhatsappController.js";
 // 🔐 Importe o seu middleware de autenticação real aqui (exemplo abaixo)
 import { authMiddleware } from "../../auth/middlewares/authMiddleware.js"; 
 

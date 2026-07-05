@@ -1,6 +1,6 @@
 import { type Request, type Response } from "express";
 import { WhatsappService } from "../domain/WhatsappService.js";
-import { WhatsappRepository } from "../repositories/whatsappRepository.js";
+import { WhatsappRepository } from "../repositories/WhatsappRepository.js";
 
 interface AuthenticatedRequest extends Request {
   user?: {
