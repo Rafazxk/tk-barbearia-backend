@@ -1,5 +1,5 @@
-import { db, agendaBloqueiosTable } from "../../../database/index.js";
-import { eq } from "drizzle-orm";
+import { db, agendaBloqueiosTable, barbersTable } from "../../../database/index.js";
+import { eq, sql } from "drizzle-orm";
 // import { usersTable } from "./schema.js"; // Importe sua tabela de usuários se tiver
 
 export class ScheduleBlocksRepository {
@@ -13,10 +13,11 @@ export class ScheduleBlocksRepository {
         horaInicio: agendaBloqueiosTable.horaInicio,
         horaFim: agendaBloqueiosTable.horaFim,
         barbeiroId: agendaBloqueiosTable.barbeiroId,
-        // barbeiroNome: usersTable.nome // Descomente quando vincular a tabela de usuários
+        // Usamos COALESCE para o SQL devolver "Barbearia Inteira" se o nome for null
+        nomeBarbeiro: barbersTable.nome
       })
       .from(agendaBloqueiosTable)
-      // .leftJoin(usersTable, eq(agendaBloqueiosTable.barbeiroId, usersTable.id))
+      .leftJoin(barbersTable, eq(agendaBloqueiosTable.barbeiroId, barbersTable.id))
       .orderBy(agendaBloqueiosTable.dataInicio);
   }
 
@@ -28,7 +29,18 @@ export class ScheduleBlocksRepository {
     horaFim?: string | null;
     barbeiroId?: number | null;
   }) {
-    const [item] = await db.insert(agendaBloqueiosTable).values(data).returning();
+    // Garantimos que o objeto inserido tenha todas as chaves, 
+    // mas com valores estritamente tratados.
+    const insertPayload = {
+      tipo: data.tipo,
+      descricao: data.descricao,
+      dataInicio: data.dataInicio,
+      horaInicio: data.horaInicio ?? null,
+      horaFim: data.horaFim ?? null,
+      barbeiroId: data.barbeiroId ?? null,
+    };
+
+    const [item] = await db.insert(agendaBloqueiosTable).values(insertPayload).returning();
     return item;
   }
 

@@ -1,5 +1,5 @@
-import { db, appointmentsTable, appointmentServicesTable, servicesTable, barbersTable } from "../../../database/index.js";
-import { eq, and, gte, lte, lt, sql } from "drizzle-orm";
+import { db, appointmentsTable, appointmentServicesTable, servicesTable, barbersTable, agendaBloqueiosTable} from "../../../database/index.js";
+import { eq, and,or, isNull, gte, lte, lt, sql } from "drizzle-orm";
 import { type IAppointmentsRepository, type IAppointmentsFilters } from "./IAppointmentsRepository.js";
 import { type IClientAppointment } from "./IClienteRepository.js";
 
@@ -205,26 +205,54 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async findAvailableSlots(barberId: number, date: string) {
-    if (!barberId) {
-      throw new Error("barberId is required to find available slots.");
-    }
-    const startOfDay = new Date(`${date}T00:00:00.000Z`);
-    const endOfDay = new Date(`${date}T23:59:59.999Z`);
-
-    const bookedAppointments = await this.findByDate(barberId, date);
-
-    const bookedTimes = bookedAppointments.map(app => app.dataHora.toISOString());
-
-    const allSlots = [];
-    for (let hour = 9; hour <= 17; hour++) {
-      const slotTime = new Date(startOfDay);
-      slotTime.setUTCHours(hour, 0, 0, 0);
-      if (!bookedTimes.includes(slotTime.toISOString())) {
-        allSlots.push(slotTime.toISOString());
-      }
-    }
-    return allSlots;
+  if (!barberId) {
+    throw new Error("barberId is required to find available slots.");
   }
+
+  // 1. Pega os agendamentos já marcados
+  const bookedAppointments = await this.findByDate(barberId, date);
+  const bookedTimes = bookedAppointments.map(app => app.dataHora.toISOString());
+
+  // 2. Busca bloqueios para este barbeiro OU bloqueios gerais (NULL) na data
+  const bloqueios = await db.select()
+    .from(agendaBloqueiosTable)
+    .where(
+      and(
+        eq(agendaBloqueiosTable.dataInicio, date),
+        or(
+          eq(agendaBloqueiosTable.barbeiroId, barberId), // Bloqueio do barbeiro
+          isNull(agendaBloqueiosTable.barbeiroId)        // Bloqueio geral
+        )
+      )
+    );
+
+  const allSlots = [];
+  for (let hour = 9; hour <= 17; hour++) {
+    const slotTime = new Date(`${date}T${hour.toString().padStart(2, '0')}:00:00Z`);
+    const isoString = slotTime.toISOString();
+
+    // 3. Verifica se o horário está ocupado por cliente OU por bloqueio
+    const estaOcupado = bookedTimes.includes(isoString);
+    
+    const estaBloqueado = bloqueios.some(b => {
+      // Se for bloqueio de data inteira
+      if (b.tipo === 'data') return true; 
+      
+      // Se for bloqueio de horário, verifica se o horário do loop está no intervalo
+      if (b.tipo === 'horario' && b.horaInicio && b.horaFim) {
+        const horaSlot = `${hour.toString().padStart(2, '0')}:00`;
+        return horaSlot >= b.horaInicio && horaSlot <= b.horaFim;
+      }
+      return false;
+    });
+
+    if (!estaOcupado && !estaBloqueado) {
+      allSlots.push(isoString);
+    }
+  }
+  
+  return allSlots;
+}
 
   async findBookedSlotsByDate(barberId: number, date: string): Promise<string[]> {
     // 1. Criamos o intervalo de início e fim daquele dia completo em UTC/Local
