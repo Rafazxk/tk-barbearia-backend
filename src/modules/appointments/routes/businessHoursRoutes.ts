@@ -14,7 +14,7 @@ businessHoursRoutes.get("/", async (req, res, next) => {
 
 businessHoursRoutes.put("/", async (req, res, next) => {
   try {
-    const { configs, barbeiroId } = req.body; // Recebe o array inteiro e o ID do barbeiro correspondente
+    const { configs, barbeiroId } = req.body; 
     
     for (const dia of configs) {
       await repository.upsertDayConfig({

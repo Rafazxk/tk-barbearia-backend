@@ -15,6 +15,27 @@
       "when": 1782595338123,
       "tag": "0001_clumsy_steve_rogers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783337467640,
+      "tag": "0002_great_inhumans",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783389709544,
+      "tag": "0003_groovy_drax",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783391372724,
+      "tag": "0004_old_legion",
+      "breakpoints": true
     }
   ]
 }

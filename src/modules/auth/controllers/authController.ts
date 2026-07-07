@@ -84,7 +84,7 @@ export class AuthController {
       const { token } = GoogleLoginBodySchema.parse(req.body);
       const resultado = await this.authService.loginWithGoogle(token);
 
-      // 👑 BLINDAGEM: O Google agora também injeta o cookie HttpOnly padronizado!
+      //  BLINDAGEM: O Google agora também injeta o cookie HttpOnly padronizado!
       this.setAuthCookie(res, resultado.token);
 
       return res.status(200).json({ barbeiro: resultado.barbeiro });

@@ -217,7 +217,6 @@ export class AppointmentController {
     }
   };
   
-  // 👇 NOVO MÉTODO: Atualiza agendamento do cliente de forma públic
   updateClientBooking = async (req: Request, res: Response): Promise<Response> => {
     try {
       const id = Number(req.params.id);
@@ -260,7 +259,9 @@ export class AppointmentController {
         return res.status(400).json({ error: "barberId inválido ou não informado." });
       }
 
+      // 🌟 PASSE EXATAMENTE NESSA ORDEM PARA CASAR COM O SEU SERVICE E SANAR O TYPESCRIPT:
       const availableSlots = await this.appointmentsService.listAvailableSlots(parsedBarberId, date);
+      
       return res.json(availableSlots);
     } catch (err) {
       console.error("❌ ERRO AO LISTAR HORÁRIOS DISPONÍVEIS:", err);

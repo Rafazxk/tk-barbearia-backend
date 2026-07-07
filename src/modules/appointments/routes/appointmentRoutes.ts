@@ -3,12 +3,15 @@ import { AppointmentController } from "../controllers/AppointmentsController.js"
 import { authMiddleware } from "../../auth/middlewares/authMiddleware.js";
 import { AppointmentsService } from "../domain/AppointmentsService.js";
 import { AppointmentsRepository } from "../repositories/AppointmentsRepository.js";
-
+import { BusinessHoursRepository } from "..//repositories/BusinessHoursRepository.js";
 
 const appointmentRoutes = Router();
 
+const businessHoursRepository = new BusinessHoursRepository();
+
 const appointmentsRepository = new AppointmentsRepository();
-const appointmentsService = new AppointmentsService(appointmentsRepository);
+const appointmentsService = new AppointmentsService(appointmentsRepository, businessHoursRepository);
+
 const appointmentController = new AppointmentController(appointmentsService);
 
 // ROTAS PÚBLICAS 

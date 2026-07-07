@@ -225,4 +225,34 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     }
     return allSlots;
   }
+
+  async findBookedSlotsByDate(barberId: number, date: string): Promise<string[]> {
+    // 1. Criamos o intervalo de início e fim daquele dia completo em UTC/Local
+    // Se 'date' vier como "2026-07-06"
+    const inicioDia = new Date(`${date}T00:00:00`);
+    const fimDia = new Date(`${date}T23:59:59`);
+
+    // 2. Buscamos todos os agendamentos que caem dentro desse dia para o barbeiro
+    const result = await db
+      .select({ 
+        dataHora: appointmentsTable.dataHora 
+      })
+      .from(appointmentsTable)
+      .where(
+        and(
+          eq(appointmentsTable.barbeiroId, barberId),
+          gte(appointmentsTable.dataHora, inicioDia), // Maior ou igual ao início do dia
+          lte(appointmentsTable.dataHora, fimDia)    // Menor ou igual ao fim do dia
+        )
+      );
+
+    // 3. Mapeamos os objetos Date retornados pelo banco para extrair apenas a string "HH:MM"
+    const horariosOcupados = result.map(app => {
+      const horas = String(app.dataHora.getHours()).padStart(2, "0");
+      const minutos = String(app.dataHora.getMinutes()).padStart(2, "0");
+      return `${horas}:${minutos}`; // Retorna algo como "14:30"
+    });
+
+    return horariosOcupados;
+  }
 }

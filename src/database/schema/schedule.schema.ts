@@ -10,13 +10,13 @@ export const agendaBloqueiosTable = pgTable("agenda_bloqueios", {
   barbeiroId: integer("barbeiro_id"), // Nulo significa "Todos os Barbeiros"
 });
 
-export const expedienteConfigTable = pgTable("expediente_config", {
+export const expedienteConfigTable = pgTable("expediente_configs", {
   id: serial("id").primaryKey(),
-  barbeiroId: integer("barbeiro_id"), // 👈 Verifique se o nome aqui é exatamente 'barbeiroId'
+  barbeiroId: integer("barbeiro_id"),
   diaSemana: integer("dia_semana").notNull(),
   diaNome: varchar("dia_nome", { length: 20 }).notNull(),
   trabalha: boolean("trabalha").default(true).notNull(),
-  horaAbertura: time("hora_abertura").default("09:00:00"),
-  horaFechamento: time("hora_fechamento").default("19:00:00"),
+  horaAbertura: varchar("hora_abertura", { length: 5 }).default("09:00").notNull(),
+  horaFechamento: varchar("hora_fechamento", { length: 5 }).default("19:00").notNull(),
   intervaloMinutos: integer("intervalo_minutos").default(30).notNull(),
 });
