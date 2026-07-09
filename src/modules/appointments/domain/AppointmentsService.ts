@@ -178,6 +178,7 @@ async listByClientPhone(phone: string) {
   }
 
   async listAvailableSlots(barberId: number, date: string): Promise<string[]> {
+    console.log(`DEBUG: Barbeiro ${barberId} solicitou data ${date}`);
     // 1. Descobrir o dia da semana da data que o usuário quer agendar (ex: "2026-07-06")
     const dataParsed = new Date(`${date}T00:00:00`);
     const diaSemana = dataParsed.getDay(); // Retorna 0 para Domingo, 1 para Segunda...
