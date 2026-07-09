@@ -68,7 +68,7 @@ export class AuthController {
       // Aplica a blindagem do cookie cross-domain
       this.setAuthCookie(res, resultado.token);
 
-      return res.json({ barbeiro: resultado.barbeiro });
+      return res.json({ barbeiro: resultado.barbeiro, token: resultado.token });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ erros: error.format() });
