@@ -32,14 +32,20 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
+    // Permite conexões sem origem (ex: mobile apps, ferramentas de API, ou requisições internas)
     if (!origin) return callback(null, true);
     
+    // Log para você ver o que está acontecendo no log do Render
+    console.log("Tentativa de acesso de origem:", origin);
+
     const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".vercel.app");
     
     if (isAllowed) {
       callback(null, true);
     } else {
-      callback(new Error("Bloqueado pelo CORS: Origem não permitida."));
+      // Em vez de jogar um erro que quebra a requisição, vamos apenas logar e negar
+      console.error("CORS Bloqueado para:", origin);
+      callback(new Error("Bloqueado pelo CORS"));
     }
   },
   credentials: true,
