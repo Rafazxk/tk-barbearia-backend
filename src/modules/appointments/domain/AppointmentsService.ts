@@ -226,6 +226,7 @@ async listByClientPhone(phone: string) {
       !horariosOcupados.includes(slot) && 
       !bloqueios.some(b => slot >= (b.horaInicio ?? "") && slot < (b.horaFim ?? ""))
     );
+    console.log(`LOG DE PRODUÇÃO: Data ${date}, Barbeiro ${barberId}, Bloqueios encontrados: ${JSON.stringify(bloqueios)}`);
     // Retorna o array limpo de strings exatas: ["08:00", "08:30", "09:30"]
     return slotsLivres; 
   }

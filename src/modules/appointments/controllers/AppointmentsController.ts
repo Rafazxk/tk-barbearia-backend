@@ -46,6 +46,7 @@ export class AppointmentController {
   constructor(private appointmentsService: AppointmentsService) {
     this.listAvailable = this.listAvailable.bind(this);
     this.createClientBooking = this.createClientBooking.bind(this);
+    
   }
 
   // 👇 2. MÉTODO NOVO: Criação pública vinda do app do cliente
