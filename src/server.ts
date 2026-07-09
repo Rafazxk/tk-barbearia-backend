@@ -5,7 +5,9 @@ import dotenv from "dotenv";
 import { createServer } from "http"; 
 import { appointmentRoutes } from "./modules/appointments/routes/appointmentRoutes.js";
 import { authRouter } from "./modules/auth/routes/authRouter.js"; 
+
 import { whatsappRoutes } from "./modules/whatsapp/routes/WhatsappRoutes.js";
+
 import { SocketService } from "./shared/SocketService.js"; 
 import { categoryRoutes } from "./modules/appointments/routes/categoriesRoutes.js";
 import { productRoutes } from "./modules/appointments/routes/productsRoutes.js";
@@ -50,17 +52,16 @@ app.use(cookieParser());
 
 app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
-app.use("/api/appointments", appointmentRoutes);
-
 SocketService.init(httpServer, allowedOrigins);
 
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/auth", authRouter); 
-app.use("/api/barber", whatsappRoutes);
+app.use("/whatsapp", whatsappRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/schedule-blocks", scheduleBlocksRoutes);
 app.use("/api/business-hours", businessHoursRoutes);
+
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "online", message: "Servidor voando baixo!" });

@@ -20,6 +20,16 @@ export class ScheduleBlocksRepository {
       .leftJoin(barbersTable, eq(agendaBloqueiosTable.barbeiroId, barbersTable.id))
       .orderBy(agendaBloqueiosTable.dataInicio);
   }
+  
+async findBlocksByDate(barberId: number, date: string) {
+  return await db
+    .select()
+    .from(agendaBloqueiosTable)
+    .where(
+      sql`${agendaBloqueiosTable.dataInicio} = ${date} AND 
+          (${agendaBloqueiosTable.barbeiroId} = ${barberId} OR ${agendaBloqueiosTable.barbeiroId} IS NULL)`
+    );
+}
 
   async create(data: {
     tipo: string;

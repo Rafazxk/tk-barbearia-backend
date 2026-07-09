@@ -1,19 +1,10 @@
 import { Router } from "express";
-import { WhatsappController } from "../controllers/WhatsappController.js";
-// 🔐 Importe o seu middleware de autenticação real aqui (exemplo abaixo)
-import { authMiddleware } from "../../auth/middlewares/authMiddleware.js"; 
+import { WhatsAppController } from "../controllers/WhatsappController.js";
 
 const whatsappRoutes = Router();
-const controller = new WhatsappController();
 
-whatsappRoutes.use(authMiddleware);
+const controller = new WhatsAppController();
 
-// 📥 Rota para o React Query buscar as configurações atuais (Cards e Template)
-// GET http://localhost:3000/api/barber/whatsapp-settings
-whatsappRoutes.get("/whatsapp-settings", controller.getSettings);
+whatsappRoutes.post("/test", controller.test);
 
-// 📤 Rota para o Mutation do React Query salvar ou atualizar as configurações
-// PATCH http://localhost:3000/api/barber/whatsapp-settings
-whatsappRoutes.patch("/whatsapp-settings", controller.updateSettings);
-
-export { whatsappRoutes };
+export { whatsappRoutes }

@@ -1,17 +1,21 @@
 import { type IAppointmentsRepository, type IAppointmentsFilters } from "../repositories/IAppointmentsRepository.js";
 import { type IBusinessHoursRepository, type IBusinessHoursInput } from "../repositories/IBusinessHoursRepository.js";
 import { SocketService } from "../../../shared/SocketService.js";
+import { ScheduleBlocksRepository } from "../repositories/ScheduleBlocksRepository.js";
 
 export class AppointmentsService {
   private appointmentsRepository: IAppointmentsRepository;
   private businessHoursRepository: IBusinessHoursRepository;
+  private scheduleBlocksRepository: ScheduleBlocksRepository;
 
   constructor(
     appointmentsRepository: IAppointmentsRepository,
-    businessHoursRepository: IBusinessHoursRepository // 👈 Receba no construtor
+    businessHoursRepository: IBusinessHoursRepository,
+    scheduleBlocksRepository: ScheduleBlocksRepository
   ) {
     this.appointmentsRepository = appointmentsRepository;
-    this.businessHoursRepository = businessHoursRepository; // 👈 Injection feita com sucesso!
+    this.businessHoursRepository = businessHoursRepository;
+    this.scheduleBlocksRepository = scheduleBlocksRepository;
   }
  private timeToMinutes(timeStr: string): number {
   if (!timeStr || typeof timeStr !== "string") {
@@ -208,11 +212,20 @@ async listByClientPhone(phone: string) {
     }
 
     // 4. Ir na tabela de agendamentos reais buscar o que já está ocupado
-    const horariosOcupados = await this.appointmentsRepository.findBookedSlotsByDate(barberId, date);
+
+    const [horariosOcupados, bloqueios] = await Promise.all([
+      this.appointmentsRepository.findBookedSlotsByDate(barberId, date),
+      this.scheduleBlocksRepository.findBlocksByDate(barberId, date)
+    ]);
 
     // 5. Filtrar a lista total tirando o que já está ocupado no banco
-    const slotsLivres = slotsPadronizados.filter(slot => !horariosOcupados.includes(slot));
+    const bloqueioTotal = bloqueios.some(b => b.horaInicio === null && b.horaFim === null);
+    if (bloqueioTotal) return [];
 
+  const slotsLivres = slotsPadronizados.filter(slot => 
+      !horariosOcupados.includes(slot) && 
+      !bloqueios.some(b => slot >= (b.horaInicio ?? "") && slot < (b.horaFim ?? ""))
+    );
     // Retorna o array limpo de strings exatas: ["08:00", "08:30", "09:30"]
     return slotsLivres; 
   }

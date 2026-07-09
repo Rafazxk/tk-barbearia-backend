@@ -1,48 +1,28 @@
-import { type Request, type Response } from "express";
-import { WhatsappService } from "../domain/WhatsappService.js";
-import { WhatsappRepository } from "../repositories/WhatsappRepository.js";
+import  type { Request, Response } from "express";
+import { EvolutionClient } from "../infrastructure/evolution/EvolutionClient.js";
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: number;
-    role: string;
-  };
-}
-
-export class WhatsappController {
-  private whatsappRepository = new WhatsappRepository();
-  private whatsappService = new WhatsappService(this.whatsappRepository);
-
-  getSettings = async (req: AuthenticatedRequest, res: Response) => {
+export class WhatsAppController {
+  async test(req: Request, res: Response) {
     try {
-      // 🔹 Lemos o user usando a nossa interface garantida
-      const barberId = req.user?.id; 
-      
-      if (!barberId) {
-        return res.status(401).json({ error: "Barbeiro não autenticado ou sessão inválida." });
-      }
+      const client = new EvolutionClient();
 
-      const settings = await this.whatsappService.getSettings(barberId);
-      return res.json(settings);
-    } catch (err) {
-      console.error("Erro no GET whatsapp-settings:", err);
-      return res.status(500).json({ error: "Erro interno do servidor." });
+      await client.post(
+        `/message/sendText/${process.env.EVOLUTION_INSTANCE}`,
+        {
+          number: "5581983084006", 
+          text: "🚀 Teste enviado pelo backend da barbearia!"
+        }
+      );
+
+      return res.json({
+        success: true,
+        message: "Mensagem enviada!"
+      });
+
+    } catch (error) {
+      console.error(error);
+
+      return res.status(500).json(error);
     }
-  };
-
-  updateSettings = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const barberId = req.user?.id;
-      
-      if (!barberId) {
-        return res.status(401).json({ error: "Barbeiro não autenticado ou sessão inválida." });
-      }
-
-      const settings = await this.whatsappService.updateSettings(barberId, req.body);
-      return res.json(settings);
-    } catch (err) {
-      console.error("Erro no PATCH whatsapp-settings:", err);
-      return res.status(500).json({ error: "Erro interno do servidor." });
-    }
-  };
+  }
 }
