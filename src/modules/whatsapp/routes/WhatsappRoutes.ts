@@ -5,6 +5,6 @@ const whatsappRoutes = Router();
 
 const controller = new WhatsAppController();
 
-whatsappRoutes.post("/test", controller.test);
+whatsappRoutes.post("/whatsapp", (req, res) => controller.test(req, res));
 
 export { whatsappRoutes }
