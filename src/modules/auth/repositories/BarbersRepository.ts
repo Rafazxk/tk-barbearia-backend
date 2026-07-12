@@ -5,7 +5,8 @@ import { type RegisterInput } from "../domain/AuthService.js";
 import { type IBarbersRepository, type IBarberDTO } from "./IBarbersRepository.js";
 
 export class BarbersRepository implements IBarbersRepository {
-  async findByEmail(email: string): Promise<IBarberDTO | null> {
+
+async findByEmail(email: string): Promise<IBarberDTO | null> {
     const [barber] = await db
       .select()
       .from(barbersTable)
@@ -18,12 +19,29 @@ export class BarbersRepository implements IBarbersRepository {
       role: barber.role ?? "barber" // garante que seja string
     }
   }
+
+async findById(id: number): Promise<IBarberDTO | null> {
+  const [barber] = await db
+    .select()
+    .from(barbersTable)
+    .where(eq(barbersTable.id, id))
+    .limit(1);
+
+  if (!barber) return null;
+
+  return {
+    ...barber,
+    role: barber.role ?? "barber",
+  };
+}
+
 async listBarbers(): Promise<IBarberDTO[]> {
   const result = await db
     .select({
       id: barbersTable.id,
       nome: barbersTable.nome,
       email: barbersTable.email,
+      telefone: barbersTable.telefone,
       foto: barbersTable.foto,
       role: barbersTable.role,
     })
@@ -34,19 +52,20 @@ async listBarbers(): Promise<IBarberDTO[]> {
     id: b.id,
     nome: b.nome,
     email: b.email,
+    telefone: b.telefone,
     foto: b.foto,
     role: b.role ?? "barber",
   }));
 }
 
-
-  async create(dados: RegisterInput & { passwordHash: string }): Promise<IBarberDTO | null> {
+async create(dados: RegisterInput & { passwordHash: string }): Promise<IBarberDTO | null> {
     const [novoBarbeiro] = await db
       .insert(barbersTable)
       .values({
         nome: dados.nome,
         email: dados.email,
         password: dados.passwordHash,
+        telefone: dados.telefone,
         foto: dados.foto,
         role: dados.role,
       })
@@ -59,7 +78,7 @@ async listBarbers(): Promise<IBarberDTO[]> {
     }
   }
 
-  async updateFoto(id: number, fotoUrl: string): Promise<IBarberDTO> {
+async updateFoto(id: number, fotoUrl: string): Promise<IBarberDTO> {
   const [barberAtualizado] = await db
     .update(barbersTable)
     .set({

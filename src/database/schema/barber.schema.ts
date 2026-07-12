@@ -5,6 +5,7 @@ export const barbersTable = pgTable("barbeiros", {
   nome: varchar("nome", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(), // Esse continua unique
   password: varchar("senha", { length: 255 }).notNull(), 
+  telefone: varchar("telefone", { length: 20 }),
   foto: varchar("foto", { length: 255 }),
   role: varchar("role", { length: 50 }).default("barber"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

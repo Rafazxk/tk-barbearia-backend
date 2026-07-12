@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import { createServer } from "http"; 
 import { appointmentRoutes } from "./modules/appointments/routes/appointmentRoutes.js";
 import { authRouter } from "./modules/auth/routes/authRouter.js"; 
-
+import { notificationRoutes } from "../src/shared/notifications/routes/notificationRoutes.js";
 import { whatsappRoutes } from "./modules/whatsapp/routes/WhatsappRoutes.js";
 
 import { SocketService } from "./shared/SocketService.js"; 
@@ -67,7 +67,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/schedule-blocks", scheduleBlocksRoutes);
 app.use("/api/business-hours", businessHoursRoutes);
-
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "online", message: "Servidor voando baixo!" });

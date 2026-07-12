@@ -1,31 +1,83 @@
-import { type IWhatsappRepository } from "../repositories/IWhatsappRepository.js";
-import axios from "axios";
+import { type MessageProvider } from "./interfaces/MessageProvider.js"
 
 export class WhatsappService {
-  // 🔹 O service agora aponta para o tipo da Interface, não para a classe concreta
-  private whatsappRepository: IWhatsappRepository;
+    constructor(
+        private readonly messageProvider: MessageProvider
+    ) { }
 
-  // 🔹 Recebe o repositório pelo construtor (Injeção de Dependência)
-  constructor(whatsappRepository: IWhatsappRepository) {
-    this.whatsappRepository = whatsappRepository;
-  }
-
-  async getSettings(barberId: number) {
-    let settings = await this.whatsappRepository.findByBarberId(barberId);
-    
-    if (!settings) {
-      return {
-        receiveAdminNotifications: false,
-        sendClientNotifications: false,
-        welcomeMessageTemplate: "Olá {cliente}, seu agendamento para {servico} foi confirmado!"
-      };
+    async sendText(
+        telefone: string,
+        text: string
+    ) {
+        await this.messageProvider.sendText(
+            "5581983084006",
+            text
+        );
     }
-    return settings;
-  }
 
-  async updateSettings(barberId: number, data: any) {
-    return await this.whatsappRepository.upsertSettings(barberId, data);
-  }
+    async notifyAppointmentCreated(
+        barber: any,
+        appointment: any
+    ) {
 
-  // ... método triggerNotification continua igual usando o this.whatsappRepository
+        const mensagem = `
+📅 Novo agendamento
+
+Cliente: ${appointment.clienteNome}
+Telefone: ${appointment.clienteTelefone}
+
+Serviços:
+${appointment.servicos
+                .map((s: any) => `• ${s.nome}`)
+                .join("\n")}
+`;
+
+        await this.sendText(
+            barber.telefone,
+            mensagem
+        );
+    }
+
+    async notifyAppointmentUpdated(barber: any, appointment: any){
+        const mensagem = `
+✏️ Agendamento alterado
+
+Cliente: ${appointment.clienteNome}
+Telefone: ${appointment.clienteTelefone}
+
+Serviços:
+${appointment.servicos.map((s: any) => `• ${s.nome}`).join("\n")}
+
+Nova data:
+${appointment.dataHora}
+`;
+        await this.sendText(
+            barber.telefone,
+            mensagem
+        )
+    }
+
+    async notifyAppointmentDeleted(
+    barber: any,
+    appointment: any
+) {
+
+    const mensagem = `
+❌ Agendamento cancelado
+
+Cliente: ${appointment.clienteNome}
+Telefone: ${appointment.clienteTelefone}
+
+Serviços:
+${appointment.servicos.map((s: any) => `• ${s.nome}`).join("\n")}
+
+Data:
+${appointment.dataHora}
+`;
+
+    await this.sendText(
+        barber.telefone,
+        mensagem
+    );
+}
 }

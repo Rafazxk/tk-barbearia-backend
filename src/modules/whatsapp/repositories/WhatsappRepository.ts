@@ -28,7 +28,7 @@ export class WhatsappRepository implements IWhatsappRepository {
           receiveAdminNotifications: data.receiveAdminNotifications,
           sendClientNotifications: data.sendClientNotifications,
           welcomeMessageTemplate: data.welcomeMessageTemplate,
-          updatedAt: new Date(),
+          updatedAt: new Date()
         },
       })
       .returning();

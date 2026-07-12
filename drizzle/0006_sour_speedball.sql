@@ -1,0 +1,1 @@
+ALTER TABLE "barbeiros" ALTER COLUMN "telefone" DROP NOT NULL;

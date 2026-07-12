@@ -1,28 +1,37 @@
-import  type { Request, Response } from "express";
-import { EvolutionClient } from "../infrastructure/evolution/EvolutionClient.js";
+import type { Request, Response } from "express";
+import { WhatsappService } from "../../whatsapp/domain/WhatsappService.js";
 
 export class WhatsAppController {
-  async test(req: Request, res: Response) {
-    try {
-      const client = new EvolutionClient();
 
-      await client.post(
-        `/message/sendText/${process.env.EVOLUTION_INSTANCE}`,
-        {
-          number: "5581983084006", 
-          text: "🚀 Teste enviado pelo backend da barbearia!"
-        }
+  constructor(
+    private readonly whatsappService: WhatsappService
+  ) {}
+
+  async test(req: Request, res: Response) {
+
+    try {
+
+      await this.whatsappService.sendText(
+        "5581983084006",
+        "🚀 Teste enviado pelo backend da barbearia!"
       );
 
-      return res.json({
+      return res.status(200).json({
         success: true,
         message: "Mensagem enviada!"
       });
 
     } catch (error) {
+
       console.error(error);
 
-      return res.status(500).json(error);
+      return res.status(500).json({
+        success: false,
+        error
+      });
+
     }
+
   }
+
 }

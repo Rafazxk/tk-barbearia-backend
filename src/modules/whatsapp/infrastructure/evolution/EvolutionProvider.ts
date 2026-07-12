@@ -14,6 +14,9 @@ export class EvolutionProvider
     message: string
   ): Promise<void> {
 
+
+    console.log("Enviando para:", phone);
+    console.log(message);
     await this.client.post(
       `/message/sendText/${env.evolution.instance}`,
       {

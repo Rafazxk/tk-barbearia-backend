@@ -13,22 +13,22 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     }
 
     return await db
-      .select({
-        id: sql<string>`md5(${appointmentsTable.clienteTelefone})`,
-        nome: appointmentsTable.clienteNome,
-        telefone: appointmentsTable.clienteTelefone,
-        totalCortes: sql<number>`count(distinct ${appointmentsTable.id})::int`,
-        ultimoCorte: sql<string>`max(${appointmentsTable.dataHora})::text`,
-        totalGasto: sql<number>`coalesce(sum(${servicesTable.preco}), 0)::float`
-      })
-      .from(appointmentsTable)
-      .leftJoin(appointmentServicesTable, eq(appointmentServicesTable.appointmentId, appointmentsTable.id))
-      .leftJoin(servicesTable, eq(appointmentServicesTable.serviceId, servicesTable.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .groupBy(appointmentsTable.clienteNome, appointmentsTable.clienteTelefone)
-      .having(sql`count(distinct ${appointmentsTable.id}) >= 2`)
-      // 🔝 CORREÇÃO AQUI: Ordena diretamente pelo COUNT em vez do alias de texto
-      .orderBy(sql`count(distinct ${appointmentsTable.id}) DESC`);
+  .select({
+    id: appointmentsTable.id,
+    clienteNome: appointmentsTable.clienteNome,
+    clienteTelefone: appointmentsTable.clienteTelefone,
+    dataHora: appointmentsTable.dataHora,
+    barbeiroId: appointmentsTable.barbeiroId,
+
+    barbeiroNome: barbersTable.nome,
+    barbeiroTelefone: barbersTable.telefone,
+  })
+  .from(appointmentsTable)
+  .leftJoin(
+    barbersTable,
+    eq(barbersTable.id, appointmentsTable.barbeiroId)
+  )
+  .where(conditions.length ? and(...conditions) : undefined);
   }
 
   async findAll(filters?: IAppointmentsFilters) {
@@ -57,9 +57,26 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async findById(id: number) {
-    const [appointment] = await db.select().from(appointmentsTable).where(eq(appointmentsTable.id, id));
-    return appointment || null;
-  }
+  const [appointment] = await db
+    .select({
+      id: appointmentsTable.id,
+      clienteNome: appointmentsTable.clienteNome,
+      clienteTelefone: appointmentsTable.clienteTelefone,
+      dataHora: appointmentsTable.dataHora,
+      barbeiroId: appointmentsTable.barbeiroId,
+
+      barbeiroNome: barbersTable.nome,
+      barbeiroTelefone: barbersTable.telefone,
+    })
+    .from(appointmentsTable)
+    .leftJoin(
+      barbersTable,
+      eq(barbersTable.id, appointmentsTable.barbeiroId)
+    )
+    .where(eq(appointmentsTable.id, id));
+
+  return appointment ?? null;
+}
 
   async findByDate(barberId: number, dateStr: string) {
     // dateStr vem do front como "2026-06-26"

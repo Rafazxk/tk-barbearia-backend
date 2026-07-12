@@ -1,0 +1,1 @@
+ALTER TABLE "barbeiros" ADD COLUMN "telefone" varchar(20) NOT NULL;

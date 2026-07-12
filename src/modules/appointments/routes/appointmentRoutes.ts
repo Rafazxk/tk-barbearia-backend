@@ -5,14 +5,35 @@ import { AppointmentsService } from "../domain/AppointmentsService.js";
 import { AppointmentsRepository } from "../repositories/AppointmentsRepository.js";
 import { BusinessHoursRepository } from "../repositories/BusinessHoursRepository.js";
 import { ScheduleBlocksRepository } from "../repositories/ScheduleBlocksRepository.js";
+import { EvolutionClient } from "../../whatsapp/infrastructure/evolution/EvolutionClient.js";
+import { EvolutionProvider } from "../../whatsapp/infrastructure/evolution/EvolutionProvider.js";
+import { BarbersRepository } from "../../auth/repositories/BarbersRepository.js";
+import { WhatsappService } from "../../whatsapp/domain/WhatsappService.js";
+import { PushNotificationService } from "../../../shared/notifications/PushNotificationService.js";
+import { PushSubscriptionRepository } from "../../../shared/notifications/repositories/PushSubscriptionRepository.js";
+
+const pushRepository = new PushSubscriptionRepository();
+const pushService = new PushNotificationService(pushRepository);
 
 const appointmentRoutes = Router();
 
 const businessHoursRepository = new BusinessHoursRepository();
 const appointmentsRepository = new AppointmentsRepository();
 const scheduleBlocksRepository = new ScheduleBlocksRepository();
+const barbersRepository = new BarbersRepository();
 
-const appointmentsService = new AppointmentsService(appointmentsRepository, businessHoursRepository, scheduleBlocksRepository);
+const evolutionClient = new EvolutionClient();
+
+const evolutionProvider = new EvolutionProvider(
+  evolutionClient
+);
+
+const whatsappService = new WhatsappService(
+  evolutionProvider
+);
+
+const appointmentsService = new AppointmentsService(appointmentsRepository, businessHoursRepository, scheduleBlocksRepository, whatsappService, barbersRepository, pushService);
+
 
 const appointmentController = new AppointmentController(appointmentsService);
 

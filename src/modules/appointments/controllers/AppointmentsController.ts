@@ -49,10 +49,6 @@ export class AppointmentController {
     
   }
 
-  // 👇 2. MÉTODO NOVO: Criação pública vinda do app do cliente
-
-
-  // 👇 3. MÉTODO NOVO: Busca o histórico pelo WhatsApp do cliente de forma pública
   getClientAppointments = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { phone } = req.params;

@@ -8,9 +8,10 @@ import { createClient } from "@supabase/supabase-js";
 
 const authRouter = Router();
 
-// 1. Inicializa o cliente do Supabase (Substitua ou use suas variáveis de ambiente)
+
 const SUPABASE_URL = process.env.SUPABASE_URL || "SUA_URL_DO_SUPABASE";
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "SUA_CHAVE_ANON_DO_SUPABASE";
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "SUA_CHAVE_SERVICE_SUPABASE";
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // 2. Configura o Multer para manter o arquivo na memória RAM temporariamente
