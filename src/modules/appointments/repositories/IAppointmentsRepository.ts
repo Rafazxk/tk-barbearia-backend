@@ -10,6 +10,7 @@ export interface IAppointmentInput {
 export interface IAppointmentsFilters {
   date?: string | undefined;
   barberId?: number | undefined;
+  order?: "asc" | "desc" | undefined;
 }
 
 export interface IAppointmentEnriched {

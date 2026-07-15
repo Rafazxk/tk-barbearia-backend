@@ -10,6 +10,7 @@ const SummaryQueryParams = z.object({
 const ListAppointmentsQueryParams = z.object({
   date: z.string().optional(),
   barberId: z.coerce.number().optional(),
+  order: z.enum(["asc", "desc"]).optional(),
 });
 
 // Schema original do Admin
@@ -105,7 +106,7 @@ export class AppointmentController {
   list = async (req: Request, res: Response): Promise<Response> => {
     const query = ListAppointmentsQueryParams.safeParse(req.query);
     if (!query.success) return res.status(400).json({ error: query.error.message });
-
+    console.log(req.query);
     try {
       const filters = { ...query.data };
       if (req.user?.role !== "admin") {

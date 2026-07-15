@@ -1,5 +1,5 @@
 import { db, appointmentsTable, appointmentServicesTable, servicesTable, barbersTable, agendaBloqueiosTable} from "../../../database/index.js";
-import { eq, and,or, isNull, gte, lte, lt, sql } from "drizzle-orm";
+import { eq, and,or, isNull, gte, lte, lt, sql, asc, desc } from "drizzle-orm";
 import { type IAppointmentsRepository, type IAppointmentsFilters } from "./IAppointmentsRepository.js";
 import { type IClientAppointment } from "./IClienteRepository.js";
 
@@ -31,30 +31,40 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   .where(conditions.length ? and(...conditions) : undefined);
   }
 
-  async findAll(filters?: IAppointmentsFilters) {
-    const conditions = [];
+ async findAll(filters?: IAppointmentsFilters) {
+  const conditions = [];
+  console.log(filters)
+  if (filters?.date) {
+    const startOfDay = new Date(filters.date);
+    startOfDay.setUTCHours(0, 0, 0, 0);
 
-    if (filters?.date) {
-      const startOfDay = new Date(filters.date);
-      startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(filters.date);
+    endOfDay.setUTCHours(23, 59, 59, 999);
 
-      const endOfDay = new Date(filters.date);
-      endOfDay.setUTCHours(23, 59, 59, 999);
-
-      conditions.push(gte(appointmentsTable.dataHora, startOfDay));
-      conditions.push(lt(appointmentsTable.dataHora, endOfDay));
-    }
-
-    if (filters?.barberId) {
-      conditions.push(eq(appointmentsTable.barbeiroId, filters.barberId));
-    }
-
-    if (conditions.length > 0) {
-      return await db.select().from(appointmentsTable).where(and(...conditions));
-    }
-
-    return await db.select().from(appointmentsTable);
+    conditions.push(gte(appointmentsTable.dataHora, startOfDay));
+    conditions.push(lt(appointmentsTable.dataHora, endOfDay));
   }
+
+  if (filters?.barberId) {
+    conditions.push(eq(appointmentsTable.barbeiroId, filters.barberId));
+  }
+
+  const order =
+    filters?.order === "asc"
+      ? asc(appointmentsTable.dataHora)
+      : desc(appointmentsTable.dataHora);
+
+  const query = db
+    .select()
+    .from(appointmentsTable)
+    .orderBy(order);
+
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions));
+  }
+
+  return await query;
+}
 
   async findById(id: number) {
   const [appointment] = await db
@@ -176,7 +186,6 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     return true;
   }
 
-
   async linkServices(appointmentId: number, serviceIds: number[]): Promise<void> {
     const valuesToInsert = serviceIds.map((serviceId) => ({ appointmentId, serviceId }));
     await db.insert(appointmentServicesTable).values(valuesToInsert);
@@ -185,8 +194,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   async unlinkServices(appointmentId: number): Promise<void> {
     await db.delete(appointmentServicesTable).where(eq(appointmentServicesTable.appointmentId, appointmentId));
   }
-
-  // 🌟 IMPLEMENTAÇÃO DO DASHBOARD REAL VIA TRILHA SQL DRIZZLE
+ 
   async getStatsToday(barberId: number) {
     const now = new Date();
     const startToday = new Date(now.setUTCHours(0, 0, 0, 0));
