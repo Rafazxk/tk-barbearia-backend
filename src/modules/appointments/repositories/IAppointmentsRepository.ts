@@ -11,6 +11,7 @@ export interface IAppointmentsFilters {
   date?: string | undefined;
   barberId?: number | undefined;
   order?: "asc" | "desc" | undefined;
+  onlyPending?: boolean | undefined;
 }
 
 export interface IAppointmentEnriched {
@@ -19,6 +20,9 @@ export interface IAppointmentEnriched {
   clienteTelefone: string;
   dataHora: Date;
   barbeiroId: number;
+
+  status: "pendente" | "confirmado" | "concluido";
+
   servicos: {
     id: number;
     nome: string;

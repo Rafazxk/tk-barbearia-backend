@@ -1,4 +1,4 @@
-import { type IAppointmentsRepository, type IAppointmentsFilters } from "../repositories/IAppointmentsRepository.js";
+import { type IAppointmentsRepository, type IAppointmentsFilters, type IAppointmentEnriched } from "../repositories/IAppointmentsRepository.js";
 import { type IBusinessHoursRepository, type IBusinessHoursInput } from "../repositories/IBusinessHoursRepository.js";
 import { SocketService } from "../../../shared/SocketService.js";
 import { ScheduleBlocksRepository } from "../repositories/ScheduleBlocksRepository.js";
@@ -6,7 +6,16 @@ import { WhatsappService } from "../../whatsapp/domain/WhatsappService.js";
 import { type IBarbersRepository } from "../../auth/repositories/IBarbersRepository.js";
 import { Time } from "../../../shared/time/Time.js";
 import { PushNotificationService } from "../../../shared/notifications/PushNotificationService.js";
+import { DateTime } from "../../../shared/time/DateTime.js";
 
+interface AppointmentBase {
+  id: number;
+  clienteNome: string;
+  clienteTelefone: string;
+  dataHora: Date;
+  barbeiroId: number;
+  status: string;
+}
 
 export class AppointmentsService {
   private appointmentsRepository: IAppointmentsRepository;
@@ -40,7 +49,7 @@ export class AppointmentsService {
   }
 
   // Helper privado para enriquecer agendamentos (reaproveitando o código antigo de soma)
-  private async enrich(baseAppointments: any[]) {
+  private async enrich(baseAppointments: AppointmentBase[]) {
     return await Promise.all(
       baseAppointments.map(async (app) => {
         const services = await this.appointmentsRepository.findServicesByAppointmentId(app.id);
@@ -56,6 +65,10 @@ export class AppointmentsService {
           servicos: services,
           totalPreco,
           totalDuracao,
+          statusVisual: this.getStatusVisual({
+            dataHora: app.dataHora,
+            totalDuracao,
+          }),
         };
       })
     );
@@ -98,10 +111,14 @@ export class AppointmentsService {
     servicoIds?: number[] | undefined;
   }) {
 
+    const dataAgendamento = DateTime.fromLocalString(data.dataHora);
+    console.log(dataAgendamento);
+
+    
     const appointment = await this.appointmentsRepository.create({
       clienteNome: data.clienteNome,
       clienteTelefone: data.clienteTelefone,
-      dataHora: new Date(data.dataHora),
+      dataHora: dataAgendamento.toDate(),
       barbeiroId: data.barbeiroId,
     });
 
@@ -114,7 +131,7 @@ export class AppointmentsService {
 
     const barber = await this.barbersRepository.findById(result.barbeiroId);
     if (!barber) throw new Error("Barbeiro não encontrado.");
-    
+
     SocketService.sendNotificationToBarber(result.barbeiroId, "new-appointment", {
       id: result.id,
       clienteNome: result.clienteNome,
@@ -127,19 +144,22 @@ export class AppointmentsService {
     try {
       await this.whatsappService.notifyAppointmentCreated(barber, result);
     } catch (error) {
-      console.error("Erro ao enviar WhatsApp:", error);
+      console.error("Erro ao enviar WhatsApp:");
+    }
+    const dataFormatada = DateTime.fromDate(appointment.dataHora).formatTime();
+
+    console.log("data formatada", dataFormatada)
+
+    try {
+      await this.pushService.sendToBarber(
+        result.barbeiroId,
+        "Novo Agendamento! ✂️",
+        `Cliente ${result.clienteNome} agendou para ${dataFormatada}`
+      );
+    } catch (err) {
+      console.error("Falha ao enviar push:", err);
     }
 
-  try {
-       await this.pushService.sendToBarber(
-         result.barbeiroId,
-         "Novo Agendamento! ✂️",
-         `Cliente ${result.clienteNome} agendou para ${new Date(result.dataHora).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`
-       );
-     } catch (err) {
-       console.error("Falha ao enviar push:", err);
-     }
-  
     return result;
   }
 
@@ -208,7 +228,7 @@ export class AppointmentsService {
     const scheduleConfigs = await this.businessHoursRepository.getSchedule(barberId);
 
     const configDia = scheduleConfigs.find(
-    (config: IBusinessHoursInput) => config.diaSemana === diaSemana
+      (config: IBusinessHoursInput) => config.diaSemana === diaSemana
     );
 
 
@@ -217,11 +237,11 @@ export class AppointmentsService {
     }
 
 
-          const abertura = new Time(configDia.horaAbertura);
-      const fechamento = new Time(configDia.horaFechamento);
+    const abertura = new Time(configDia.horaAbertura);
+    const fechamento = new Time(configDia.horaFechamento);
 
-      let minutosAbertura = abertura.toMinutes();
-      let minutosFechamento = fechamento.toMinutes();
+    let minutosAbertura = abertura.toMinutes();
+    let minutosFechamento = fechamento.toMinutes();
 
     const intervalo = configDia.intervaloMinutos;
 
@@ -258,5 +278,34 @@ export class AppointmentsService {
     // Retorna o array limpo de strings exatas: ["08:00", "08:30", "09:30"]
     return slotsLivres;
   }
+
+  private getStatusVisual(appointment: {
+  dataHora: Date;
+  totalDuracao: number;
+}) {
+  const agora = DateTime.now();
+
+  const inicio = new DateTime(appointment.dataHora);
+
+  const fim = inicio.addMinutes(appointment.totalDuracao);
+
+  console.log({
+    agora: agora.toDate(),
+    inicio: inicio.toDate(),
+    fim: fim.toDate(),
+    before: agora.isBefore(inicio),
+    between: agora.isBetween(inicio, fim),
+  });
+
+  if (agora.isBefore(inicio)) {
+    return "pendente";
+  }
+
+  if (agora.isBetween(inicio, fim)) {
+    return "em_andamento";
+  }
+
+  return "concluido";
+}
 }
 

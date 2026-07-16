@@ -2,6 +2,7 @@ import { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { AppointmentsService } from "../domain/AppointmentsService.js";
 import { error } from "console";
+import { type IAppointmentsFilters } from "../repositories/IAppointmentsRepository.js";
 
 const SummaryQueryParams = z.object({
   barberId: z.coerce.number({ message: "barberId precisa ser um número válido" })
@@ -11,6 +12,7 @@ const ListAppointmentsQueryParams = z.object({
   date: z.string().optional(),
   barberId: z.coerce.number().optional(),
   order: z.enum(["asc", "desc"]).optional(),
+  onlyPending: z.coerce.boolean().optional(),
 });
 
 // Schema original do Admin
@@ -22,7 +24,6 @@ const CreateAppointmentBody = z.object({
   servicoIds: z.array(z.number()).optional(),
 });
 
-// 👇 1. NOVO SCHEMA: Customizado para receber os produtos que o cliente escolhe na Home
 const CreateClientBookingBody = z.object({
   clienteNome: z.string().min(1, "Nome é obrigatório"),
   clienteTelefone: z.string().min(1, "Telefone é obrigatório"),
@@ -104,20 +105,40 @@ export class AppointmentController {
   };
 
   list = async (req: Request, res: Response): Promise<Response> => {
-    const query = ListAppointmentsQueryParams.safeParse(req.query);
-    if (!query.success) return res.status(400).json({ error: query.error.message });
-    console.log(req.query);
-    try {
-      const filters = { ...query.data };
-      if (req.user?.role !== "admin") {
-        filters.barberId = req.user?.id;
-      }
-      const result = await this.appointmentsService.list(filters);
-      return res.json(result);
-    } catch (err) {
-      return res.status(500).json({ error: "Internal server error" });
+  const query = ListAppointmentsQueryParams.safeParse(req.query);
+
+  if (!query.success) {
+    return res.status(400).json({ error: query.error.message });
+  }
+
+  try {
+    const filters: IAppointmentsFilters = {};
+
+    if (query.data.date) {
+      filters.date = query.data.date;
     }
-  };
+
+    if (query.data.order) {
+      filters.order = query.data.order;
+    }
+
+    if (query.data.onlyPending !== undefined) {
+      filters.onlyPending = query.data.onlyPending;
+    }
+
+    if (req.user?.role !== "admin") {
+      filters.barberId = req.user?.id;
+    } else if (query.data.barberId) {
+      filters.barberId = query.data.barberId;
+    }
+
+    const result = await this.appointmentsService.list(filters);
+
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
 
   getById = async (req: Request, res: Response): Promise<Response> => {
     try {

@@ -1,9 +1,12 @@
-import { db, appointmentsTable, appointmentServicesTable, servicesTable, barbersTable, agendaBloqueiosTable} from "../../../database/index.js";
-import { eq, and,or, isNull, gte, lte, lt, sql, asc, desc } from "drizzle-orm";
+import { db, appointmentsTable, appointmentServicesTable, servicesTable, barbersTable, agendaBloqueiosTable } from "../../../database/index.js";
+import { eq, and, or, isNull, gte, lte, lt, sql, asc, desc } from "drizzle-orm";
 import { type IAppointmentsRepository, type IAppointmentsFilters } from "./IAppointmentsRepository.js";
 import { type IClientAppointment } from "./IClienteRepository.js";
+import { DateTime } from "../../../shared/time/DateTime.js";
 
 export class AppointmentsRepository implements IAppointmentsRepository {
+
+
 
   async findFrequentClients(barberId?: number) {
     const conditions = [];
@@ -13,80 +16,92 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     }
 
     return await db
-  .select({
-    id: appointmentsTable.id,
-    clienteNome: appointmentsTable.clienteNome,
-    clienteTelefone: appointmentsTable.clienteTelefone,
-    dataHora: appointmentsTable.dataHora,
-    barbeiroId: appointmentsTable.barbeiroId,
+      .select({
+        id: appointmentsTable.id,
+        clienteNome: appointmentsTable.clienteNome,
+        clienteTelefone: appointmentsTable.clienteTelefone,
+        dataHora: appointmentsTable.dataHora,
+        barbeiroId: appointmentsTable.barbeiroId,
 
-    barbeiroNome: barbersTable.nome,
-    barbeiroTelefone: barbersTable.telefone,
-  })
-  .from(appointmentsTable)
-  .leftJoin(
-    barbersTable,
-    eq(barbersTable.id, appointmentsTable.barbeiroId)
-  )
-  .where(conditions.length ? and(...conditions) : undefined);
+        barbeiroNome: barbersTable.nome,
+        barbeiroTelefone: barbersTable.telefone,
+      })
+      .from(appointmentsTable)
+      .leftJoin(
+        barbersTable,
+        eq(barbersTable.id, appointmentsTable.barbeiroId)
+      )
+      .where(conditions.length ? and(...conditions) : undefined);
   }
 
- async findAll(filters?: IAppointmentsFilters) {
-  const conditions = [];
-  console.log(filters)
-  if (filters?.date) {
-    const startOfDay = new Date(filters.date);
-    startOfDay.setUTCHours(0, 0, 0, 0);
+  async findAll(filters?: IAppointmentsFilters) {
+    const conditions = [];
 
-    const endOfDay = new Date(filters.date);
-    endOfDay.setUTCHours(23, 59, 59, 999);
+    if (filters?.date) {
+      const selectedDate = DateTime.fromDateOnly(filters.date);
 
-    conditions.push(gte(appointmentsTable.dataHora, startOfDay));
-    conditions.push(lt(appointmentsTable.dataHora, endOfDay));
+      const startOfDay = selectedDate
+        .startOfDay()
+        .toDate();
+
+      const endOfDay = selectedDate
+        .endOfDay()
+        .toDate();
+
+      conditions.push(gte(appointmentsTable.dataHora, startOfDay));
+      conditions.push(lt(appointmentsTable.dataHora, endOfDay));
+    }
+
+    if (filters?.barberId) {
+      conditions.push(eq(appointmentsTable.barbeiroId, filters.barberId));
+    }
+
+    if (filters?.onlyPending) {
+      conditions.push(
+        gte(
+          appointmentsTable.dataHora,
+          new Date()
+        )
+      );
+    }
+    const order =
+      filters?.order === "asc"
+        ? asc(appointmentsTable.dataHora)
+        : desc(appointmentsTable.dataHora);
+
+    const query = db
+      .select()
+      .from(appointmentsTable)
+      .orderBy(order);
+
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions));
+    }
+
+    return await query;
   }
-
-  if (filters?.barberId) {
-    conditions.push(eq(appointmentsTable.barbeiroId, filters.barberId));
-  }
-
-  const order =
-    filters?.order === "asc"
-      ? asc(appointmentsTable.dataHora)
-      : desc(appointmentsTable.dataHora);
-
-  const query = db
-    .select()
-    .from(appointmentsTable)
-    .orderBy(order);
-
-  if (conditions.length > 0) {
-    return await query.where(and(...conditions));
-  }
-
-  return await query;
-}
 
   async findById(id: number) {
-  const [appointment] = await db
-    .select({
-      id: appointmentsTable.id,
-      clienteNome: appointmentsTable.clienteNome,
-      clienteTelefone: appointmentsTable.clienteTelefone,
-      dataHora: appointmentsTable.dataHora,
-      barbeiroId: appointmentsTable.barbeiroId,
+    const [appointment] = await db
+      .select({
+        id: appointmentsTable.id,
+        clienteNome: appointmentsTable.clienteNome,
+        clienteTelefone: appointmentsTable.clienteTelefone,
+        dataHora: appointmentsTable.dataHora,
+        barbeiroId: appointmentsTable.barbeiroId,
 
-      barbeiroNome: barbersTable.nome,
-      barbeiroTelefone: barbersTable.telefone,
-    })
-    .from(appointmentsTable)
-    .leftJoin(
-      barbersTable,
-      eq(barbersTable.id, appointmentsTable.barbeiroId)
-    )
-    .where(eq(appointmentsTable.id, id));
+        barbeiroNome: barbersTable.nome,
+        barbeiroTelefone: barbersTable.telefone,
+      })
+      .from(appointmentsTable)
+      .leftJoin(
+        barbersTable,
+        eq(barbersTable.id, appointmentsTable.barbeiroId)
+      )
+      .where(eq(appointmentsTable.id, id));
 
-  return appointment ?? null;
-}
+    return appointment ?? null;
+  }
 
   async findByDate(barberId: number, dateStr: string) {
     // dateStr vem do front como "2026-06-26"
@@ -194,7 +209,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   async unlinkServices(appointmentId: number): Promise<void> {
     await db.delete(appointmentServicesTable).where(eq(appointmentServicesTable.appointmentId, appointmentId));
   }
- 
+
   async getStatsToday(barberId: number) {
     const now = new Date();
     const startToday = new Date(now.setUTCHours(0, 0, 0, 0));
@@ -230,54 +245,54 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async findAvailableSlots(barberId: number, date: string) {
-  if (!barberId) {
-    throw new Error("barberId is required to find available slots.");
-  }
-
-  // 1. Pega os agendamentos já marcados
-  const bookedAppointments = await this.findByDate(barberId, date);
-  const bookedTimes = bookedAppointments.map(app => app.dataHora.toISOString());
-
-  // 2. Busca bloqueios para este barbeiro OU bloqueios gerais (NULL) na data
-  const bloqueios = await db.select()
-    .from(agendaBloqueiosTable)
-    .where(
-      and(
-        eq(agendaBloqueiosTable.dataInicio, date),
-        or(
-          eq(agendaBloqueiosTable.barbeiroId, barberId), // Bloqueio do barbeiro
-          isNull(agendaBloqueiosTable.barbeiroId)        // Bloqueio geral
-        )
-      )
-    );
-
-  const allSlots = [];
-  for (let hour = 9; hour <= 17; hour++) {
-    const slotTime = new Date(`${date}T${hour.toString().padStart(2, '0')}:00:00Z`);
-    const isoString = slotTime.toISOString();
-
-    // 3. Verifica se o horário está ocupado por cliente OU por bloqueio
-    const estaOcupado = bookedTimes.includes(isoString);
-    
-    const estaBloqueado = bloqueios.some(b => {
-      // Se for bloqueio de data inteira
-      if (b.tipo === 'data') return true; 
-      
-      // Se for bloqueio de horário, verifica se o horário do loop está no intervalo
-      if (b.tipo === 'horario' && b.horaInicio && b.horaFim) {
-        const horaSlot = `${hour.toString().padStart(2, '0')}:00`;
-        return horaSlot >= b.horaInicio && horaSlot <= b.horaFim;
-      }
-      return false;
-    });
-
-    if (!estaOcupado && !estaBloqueado) {
-      allSlots.push(isoString);
+    if (!barberId) {
+      throw new Error("barberId is required to find available slots.");
     }
+
+    // 1. Pega os agendamentos já marcados
+    const bookedAppointments = await this.findByDate(barberId, date);
+    const bookedTimes = bookedAppointments.map(app => app.dataHora.toISOString());
+
+    // 2. Busca bloqueios para este barbeiro OU bloqueios gerais (NULL) na data
+    const bloqueios = await db.select()
+      .from(agendaBloqueiosTable)
+      .where(
+        and(
+          eq(agendaBloqueiosTable.dataInicio, date),
+          or(
+            eq(agendaBloqueiosTable.barbeiroId, barberId), // Bloqueio do barbeiro
+            isNull(agendaBloqueiosTable.barbeiroId)        // Bloqueio geral
+          )
+        )
+      );
+
+    const allSlots = [];
+    for (let hour = 9; hour <= 17; hour++) {
+      const slotTime = new Date(`${date}T${hour.toString().padStart(2, '0')}:00:00Z`);
+      const isoString = slotTime.toISOString();
+
+      // 3. Verifica se o horário está ocupado por cliente OU por bloqueio
+      const estaOcupado = bookedTimes.includes(isoString);
+
+      const estaBloqueado = bloqueios.some(b => {
+        // Se for bloqueio de data inteira
+        if (b.tipo === 'data') return true;
+
+        // Se for bloqueio de horário, verifica se o horário do loop está no intervalo
+        if (b.tipo === 'horario' && b.horaInicio && b.horaFim) {
+          const horaSlot = `${hour.toString().padStart(2, '0')}:00`;
+          return horaSlot >= b.horaInicio && horaSlot <= b.horaFim;
+        }
+        return false;
+      });
+
+      if (!estaOcupado && !estaBloqueado) {
+        allSlots.push(isoString);
+      }
+    }
+
+    return allSlots;
   }
-  
-  return allSlots;
-}
 
   async findBookedSlotsByDate(barberId: number, date: string): Promise<string[]> {
     // 1. Criamos o intervalo de início e fim daquele dia completo em UTC/Local
@@ -287,8 +302,8 @@ export class AppointmentsRepository implements IAppointmentsRepository {
 
     // 2. Buscamos todos os agendamentos que caem dentro desse dia para o barbeiro
     const result = await db
-      .select({ 
-        dataHora: appointmentsTable.dataHora 
+      .select({
+        dataHora: appointmentsTable.dataHora
       })
       .from(appointmentsTable)
       .where(
