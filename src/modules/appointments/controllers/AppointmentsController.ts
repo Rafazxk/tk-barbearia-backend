@@ -22,6 +22,7 @@ const CreateAppointmentBody = z.object({
   dataHora: z.string(),
   barbeiroId: z.number(),
   servicoIds: z.array(z.number()).optional(),
+  duracao: z.coerce.number().min(15)
 });
 
 const CreateClientBookingBody = z.object({
@@ -41,7 +42,8 @@ const CreateClientBookingBody = z.object({
       id: z.coerce.number(),
       quantidade: z.coerce.number()
     })
-  ).optional().default([])
+  ).optional().default([]),
+  duracao: z.coerce.number().min(15)
 });
 
 export class AppointmentController {

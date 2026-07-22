@@ -6,6 +6,10 @@ export interface IBusinessHoursInput {
   trabalha: boolean;
   horaAbertura: string;
   horaFechamento: string;
+
+  horaInicioAlmoco: string | null;
+  horaFimAlmoco: string | null;
+
   intervaloMinutos: number;
 }
 

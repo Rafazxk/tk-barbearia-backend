@@ -7,6 +7,9 @@ export const appointmentsTable = pgTable("agendamentos", {
   clienteTelefone: varchar("cliente_telefone", { length: 20 }).notNull(),
   dataHora: timestamp("data_hora").notNull(),
   barbeiroId: integer("barbeiro_id").references(() => barbersTable.id).notNull(),
+  duracaoMinutos: integer("duracao_minutos")
+    .notNull()
+    .default(30),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

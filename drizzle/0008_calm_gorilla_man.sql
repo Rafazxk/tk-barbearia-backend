@@ -1,0 +1,2 @@
+ALTER TABLE "expediente_configs" ADD COLUMN "hora_inicio_almoco" varchar(5) DEFAULT '12:00';--> statement-breakpoint
+ALTER TABLE "expediente_configs" ADD COLUMN "hora_fim_almoco" varchar(5) DEFAULT '13:00';

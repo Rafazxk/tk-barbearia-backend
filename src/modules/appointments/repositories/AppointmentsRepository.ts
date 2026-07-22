@@ -1,6 +1,6 @@
 import { db, appointmentsTable, appointmentServicesTable, servicesTable, barbersTable, agendaBloqueiosTable } from "../../../database/index.js";
 import { eq, and, or, isNull, gte, lte, lt, sql, asc, desc } from "drizzle-orm";
-import { type IAppointmentsRepository, type IAppointmentsFilters } from "./IAppointmentsRepository.js";
+import { type IAppointmentsRepository, type IAppointmentsFilters, type IBookedSlot } from "./IAppointmentsRepository.js";
 import { type IClientAppointment } from "./IClienteRepository.js";
 import { DateTime } from "../../../shared/time/DateTime.js";
 
@@ -184,7 +184,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     });
   }
 
-  async create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number }) {
+  async create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number, duracaoMinutos: number }) {
     const [newAppointment] = await db.insert(appointmentsTable).values(data).returning();
     return newAppointment;
   }
@@ -294,7 +294,11 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     return allSlots;
   }
 
-  async findBookedSlotsByDate(barberId: number, date: string): Promise<string[]> {
+  async findBookedSlotsByDate(barberId: number, date: string): Promise<IBookedSlot[]> {
+    console.log({
+  barberId,
+  date,
+});
     // 1. Criamos o intervalo de início e fim daquele dia completo em UTC/Local
     // Se 'date' vier como "2026-07-06"
     const inicioDia = new Date(`${date}T00:00:00`);
@@ -302,25 +306,21 @@ export class AppointmentsRepository implements IAppointmentsRepository {
 
     // 2. Buscamos todos os agendamentos que caem dentro desse dia para o barbeiro
     const result = await db
-      .select({
-        dataHora: appointmentsTable.dataHora
-      })
-      .from(appointmentsTable)
-      .where(
-        and(
-          eq(appointmentsTable.barbeiroId, barberId),
-          gte(appointmentsTable.dataHora, inicioDia), // Maior ou igual ao início do dia
-          lte(appointmentsTable.dataHora, fimDia)    // Menor ou igual ao fim do dia
-        )
-      );
-
-    // 3. Mapeamos os objetos Date retornados pelo banco para extrair apenas a string "HH:MM"
-    const horariosOcupados = result.map(app => {
-      const horas = String(app.dataHora.getHours()).padStart(2, "0");
-      const minutos = String(app.dataHora.getMinutes()).padStart(2, "0");
-      return `${horas}:${minutos}`; // Retorna algo como "14:30"
-    });
-
-    return horariosOcupados;
+  .select({
+    dataHora: appointmentsTable.dataHora,
+    duracaoMinutos: appointmentsTable.duracaoMinutos,
+  })
+  .from(appointmentsTable)
+  .where(
+    and(
+      eq(appointmentsTable.barbeiroId, barberId),
+      gte(appointmentsTable.dataHora, inicioDia),
+      lte(appointmentsTable.dataHora, fimDia)
+    )
+  );
+    return result.map(app => ({
+  inicio: `${String(app.dataHora.getHours()).padStart(2, "0")}:${String(app.dataHora.getMinutes()).padStart(2, "0")}`,
+  duracao: app.duracaoMinutos
+}));
   }
 }

@@ -57,6 +57,8 @@ export class BusinessHoursRepository implements IBusinessHoursRepository {
           trabalha: dadosParaAtualizar.trabalha,
           horaAbertura: dadosParaAtualizar.horaAbertura,
           horaFechamento: dadosParaAtualizar.horaFechamento,
+          horaInicioAlmoco: dadosParaAtualizar.horaInicioAlmoco,
+          horaFimAlmoco: dadosParaAtualizar.horaFimAlmoco,
           intervaloMinutos: dadosParaAtualizar.intervaloMinutos
         })
         .where(eq(expedienteConfigTable.id, atual.id));
@@ -71,6 +73,8 @@ export class BusinessHoursRepository implements IBusinessHoursRepository {
           trabalha: data.trabalha,
           horaAbertura: data.horaAbertura,
           horaFechamento: data.horaFechamento,
+          horaInicioAlmoco: data.horaInicioAlmoco,
+          horaFimAlmoco: data.horaFimAlmoco,
           intervaloMinutos: data.intervaloMinutos
         });
     }

@@ -18,5 +18,7 @@ export const expedienteConfigTable = pgTable("expediente_configs", {
   trabalha: boolean("trabalha").default(true).notNull(),
   horaAbertura: varchar("hora_abertura", { length: 5 }).default("09:00").notNull(),
   horaFechamento: varchar("hora_fechamento", { length: 5 }).default("19:00").notNull(),
+  horaInicioAlmoco: varchar("hora_inicio_almoco", { length: 5 }).default("12:00"),
+  horaFimAlmoco: varchar("hora_fim_almoco", { length: 5 }).default("13:00"),
   intervaloMinutos: integer("intervalo_minutos").default(30).notNull(),
 });

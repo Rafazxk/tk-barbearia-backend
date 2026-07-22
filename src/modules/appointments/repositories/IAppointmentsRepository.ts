@@ -1,10 +1,16 @@
 import type { IClientAppointment } from "./IClienteRepository.js";
 
+export interface IBookedSlot {
+  inicio: string;
+  duracao: number;
+}
+
 export interface IAppointmentInput {
   clienteNome: string;
   clienteTelefone: string;
   dataHora: Date;
   barbeiroId: number;
+  duracaoMinutos: number;
 }
 
 export interface IAppointmentsFilters {
@@ -43,7 +49,7 @@ export interface IAppointmentsRepository {
   findAll(filters?: IAppointmentsFilters): Promise<any[]>;
   findById(id: number): Promise<any | null>;
   findServicesByAppointmentId(appointmentId: number): Promise<any[]>;
-  create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number }): Promise<any>;
+  create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number, duracaoMinutos: number }): Promise<any>;
   update(id: number, data: any): Promise<any | null>;
   delete(id: number): Promise<boolean>;
   linkServices(appointmentId: number, serviceIds: number[]): Promise<void>;
@@ -52,5 +58,5 @@ export interface IAppointmentsRepository {
   findFrequentClients(barberId?: number): Promise<any[]>;
   listByClientPhone(clientPhone: string): Promise<IClientAppointment[]>;
   findAvailableSlots(barberId: number, date: string): Promise<string[]>;
-  findBookedSlotsByDate(barberId: number, date: string): Promise<string[]>;
+  findBookedSlotsByDate(barberId: number, date: string): Promise<IBookedSlot[]>;
 }

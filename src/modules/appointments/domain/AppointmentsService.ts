@@ -14,6 +14,7 @@ interface AppointmentBase {
   clienteTelefone: string;
   dataHora: Date;
   barbeiroId: number;
+  duracaoMinutos: number;
   status: string;
 }
 
@@ -108,6 +109,7 @@ export class AppointmentsService {
     clienteTelefone: string;
     dataHora: string;
     barbeiroId: number;
+    duracao: number;
     servicoIds?: number[] | undefined;
   }) {
 
@@ -120,6 +122,7 @@ export class AppointmentsService {
       clienteTelefone: data.clienteTelefone,
       dataHora: dataAgendamento.toDate(),
       barbeiroId: data.barbeiroId,
+      duracaoMinutos: data.duracao,
     });
 
     if (data.servicoIds?.length) {
@@ -240,6 +243,16 @@ export class AppointmentsService {
     const abertura = new Time(configDia.horaAbertura);
     const fechamento = new Time(configDia.horaFechamento);
 
+    const inicioAlmoco =
+  configDia.horaInicioAlmoco
+    ? new Time(configDia.horaInicioAlmoco)
+    : null;
+
+const fimAlmoco =
+  configDia.horaFimAlmoco
+    ? new Time(configDia.horaFimAlmoco)
+    : null;
+
     let minutosAbertura = abertura.toMinutes();
     let minutosFechamento = fechamento.toMinutes();
 
@@ -252,12 +265,19 @@ export class AppointmentsService {
     const slotsPadronizados: string[] = [];
 
     while (minutosAbertura + intervalo <= minutosFechamento) {
-      slotsPadronizados.push(
-        Time.fromMinutes(minutosAbertura).toString()
-      );
+  const slot = Time.fromMinutes(minutosAbertura);
 
-      minutosAbertura += intervalo;
-    }
+  const estaNoAlmoco =
+    inicioAlmoco &&
+    fimAlmoco &&
+    slot.isBetween(inicioAlmoco, fimAlmoco);
+
+  if (!estaNoAlmoco) {
+    slotsPadronizados.push(slot.toString());
+  }
+
+  minutosAbertura += intervalo;
+}
 
     // 4. Ir na tabela de agendamentos reais buscar o que já está ocupado
 
@@ -265,17 +285,28 @@ export class AppointmentsService {
       this.appointmentsRepository.findBookedSlotsByDate(barberId, date),
       this.scheduleBlocksRepository.findBlocksByDate(barberId, date)
     ]);
-
+    console.log("horarios ocupados", horariosOcupados);
     // 5. Filtrar a lista total tirando o que já está ocupado no banco
     const bloqueioTotal = bloqueios.some(b => b.horaInicio === null && b.horaFim === null);
     if (bloqueioTotal) return [];
 
-    const slotsLivres = slotsPadronizados.filter(slot =>
-      !horariosOcupados.includes(slot) &&
-      !bloqueios.some(b => slot >= (b.horaInicio ?? "") && slot < (b.horaFim ?? ""))
-    );
-    console.log(`LOG DE PRODUÇÃO: Data ${date}, Barbeiro ${barberId}, Bloqueios encontrados: ${JSON.stringify(bloqueios)}`);
-    // Retorna o array limpo de strings exatas: ["08:00", "08:30", "09:30"]
+    const slotsLivres = slotsPadronizados.filter(slot => {
+  const horarioAtual = new Time(slot);
+
+  const ocupado = horariosOcupados.some(agendamento => {
+    const inicio = new Time(agendamento.inicio);
+    const fim = inicio.addMinutes(agendamento.duracao);
+
+    return horarioAtual.isBetween(inicio, fim);
+  });
+
+  const bloqueado = bloqueios.some(b =>
+    slot >= (b.horaInicio ?? "") &&
+    slot < (b.horaFim ?? "")
+  );
+
+  return !ocupado && !bloqueado;
+});
     return slotsLivres;
   }
 
@@ -288,14 +319,6 @@ export class AppointmentsService {
   const inicio = new DateTime(appointment.dataHora);
 
   const fim = inicio.addMinutes(appointment.totalDuracao);
-
-  console.log({
-    agora: agora.toDate(),
-    inicio: inicio.toDate(),
-    fim: fim.toDate(),
-    before: agora.isBefore(inicio),
-    between: agora.isBetween(inicio, fim),
-  });
 
   if (agora.isBefore(inicio)) {
     return "pendente";

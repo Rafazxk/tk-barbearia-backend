@@ -13,7 +13,7 @@ export class ScheduleBlocksRepository {
         horaInicio: agendaBloqueiosTable.horaInicio,
         horaFim: agendaBloqueiosTable.horaFim,
         barbeiroId: agendaBloqueiosTable.barbeiroId,
-        // Usamos COALESCE para o SQL devolver "Barbearia Inteira" se o nome for null
+        
         nomeBarbeiro: barbersTable.nome
       })
       .from(agendaBloqueiosTable)
