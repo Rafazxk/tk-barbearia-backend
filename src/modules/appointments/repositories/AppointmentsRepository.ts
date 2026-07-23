@@ -183,7 +183,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
       };
     });
   }
-
+//cr
   async create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number, duracaoMinutos: number }) {
     const [newAppointment] = await db.insert(appointmentsTable).values(data).returning();
     return newAppointment;
@@ -295,32 +295,41 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async findBookedSlotsByDate(barberId: number, date: string): Promise<IBookedSlot[]> {
-    console.log({
-  barberId,
-  date,
-});
-    // 1. Criamos o intervalo de início e fim daquele dia completo em UTC/Local
-    // Se 'date' vier como "2026-07-06"
-    const inicioDia = new Date(`${date}T00:00:00`);
-    const fimDia = new Date(`${date}T23:59:59`);
+  console.log({ barberId, date });
 
-    // 2. Buscamos todos os agendamentos que caem dentro desse dia para o barbeiro
-    const result = await db
-  .select({
-    dataHora: appointmentsTable.dataHora,
-    duracaoMinutos: appointmentsTable.duracaoMinutos,
-  })
-  .from(appointmentsTable)
-  .where(
-    and(
-      eq(appointmentsTable.barbeiroId, barberId),
-      gte(appointmentsTable.dataHora, inicioDia),
-      lte(appointmentsTable.dataHora, fimDia)
-    )
-  );
-    return result.map(app => ({
-  inicio: `${String(app.dataHora.getHours()).padStart(2, "0")}:${String(app.dataHora.getMinutes()).padStart(2, "0")}`,
-  duracao: app.duracaoMinutos
-}));
-  }
+  const inicioDia = new Date(`${date}T00:00:00`);
+  const fimDia = new Date(`${date}T23:59:59`);
+
+  const result = await db
+    .select({
+      dataHora: appointmentsTable.dataHora,
+      duracaoMinutos: appointmentsTable.duracaoMinutos,
+    })
+    .from(appointmentsTable)
+    .where(
+      and(
+        eq(appointmentsTable.barbeiroId, barberId),
+        gte(appointmentsTable.dataHora, inicioDia),
+        lte(appointmentsTable.dataHora, fimDia)
+      )
+    );
+
+  console.log("=== RESULTADO DO BANCO ===");
+
+  result.forEach(app => {
+    console.log({
+      dataHora: app.dataHora,
+      iso: app.dataHora.toISOString(),
+      local: app.dataHora.toString(),
+      getHours: app.dataHora.getHours(),
+      getUTCHours: app.dataHora.getUTCHours(),
+      duracao: app.duracaoMinutos,
+    });
+  });
+
+  return result.map(app => ({
+    inicio: `${String(app.dataHora.getHours()).padStart(2, "0")}:${String(app.dataHora.getMinutes()).padStart(2, "0")}`,
+    duracao: app.duracaoMinutos
+  }));
+}
 }

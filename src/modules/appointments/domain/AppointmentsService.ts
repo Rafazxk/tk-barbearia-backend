@@ -49,7 +49,7 @@ export class AppointmentsService {
     return frequentClients;
   }
 
-  // Helper privado para enriquecer agendamentos (reaproveitando o código antigo de soma)
+  
   private async enrich(baseAppointments: AppointmentBase[]) {
     return await Promise.all(
       baseAppointments.map(async (app) => {
@@ -57,6 +57,8 @@ export class AppointmentsService {
         const totalPreco = services.reduce((sum, s) => sum + Number(s.preco), 0);
         const totalDuracao = services.reduce((sum, s) => sum + s.duracaoMinutos, 0);
 
+
+        
         return {
           id: app.id,
           clienteNome: app.clienteNome,
@@ -112,11 +114,9 @@ export class AppointmentsService {
     duracao: number;
     servicoIds?: number[] | undefined;
   }) {
-
+  console.log("Dados recebidos no backend:", data.duracao)
     const dataAgendamento = DateTime.fromLocalString(data.dataHora);
-    console.log(dataAgendamento);
 
-    
     const appointment = await this.appointmentsRepository.create({
       clienteNome: data.clienteNome,
       clienteTelefone: data.clienteTelefone,
@@ -167,21 +167,25 @@ export class AppointmentsService {
   }
 
   async updateAppointment(id: number, body: any) {
-    const updateData: any = {};
+   const updateData: any = {};
 
-    if (body.clienteNome !== undefined)
-      updateData.clienteNome = body.clienteNome;
+  if (body.clienteNome !== undefined)
+    updateData.clienteNome = body.clienteNome;
 
-    if (body.clienteTelefone !== undefined)
-      updateData.clienteTelefone = body.clienteTelefone;
+  if (body.clienteTelefone !== undefined)
+    updateData.clienteTelefone = body.clienteTelefone;
 
-    if (body.dataHora !== undefined)
-      updateData.dataHora = new Date(body.dataHora);
+  if (body.dataHora !== undefined)
+    updateData.dataHora = new Date(body.dataHora);
 
-    if (body.barbeiroId !== undefined)
-      updateData.barbeiroId = body.barbeiroId;
+  if (body.barbeiroId !== undefined)
+    updateData.barbeiroId = body.barbeiroId;
 
-    const updated = await this.appointmentsRepository.update(id, updateData);
+  // FALTAVA ISSO
+  if (body.duracao !== undefined)
+    updateData.duracaoMinutos = body.duracao;
+
+  const updated = await this.appointmentsRepository.update(id, updateData);
 
     if (!updated) return null;
 
@@ -244,14 +248,14 @@ export class AppointmentsService {
     const fechamento = new Time(configDia.horaFechamento);
 
     const inicioAlmoco =
-  configDia.horaInicioAlmoco
-    ? new Time(configDia.horaInicioAlmoco)
-    : null;
+      configDia.horaInicioAlmoco
+        ? new Time(configDia.horaInicioAlmoco)
+        : null;
 
-const fimAlmoco =
-  configDia.horaFimAlmoco
-    ? new Time(configDia.horaFimAlmoco)
-    : null;
+    const fimAlmoco =
+      configDia.horaFimAlmoco
+        ? new Time(configDia.horaFimAlmoco)
+        : null;
 
     let minutosAbertura = abertura.toMinutes();
     let minutosFechamento = fechamento.toMinutes();
@@ -265,19 +269,19 @@ const fimAlmoco =
     const slotsPadronizados: string[] = [];
 
     while (minutosAbertura + intervalo <= minutosFechamento) {
-  const slot = Time.fromMinutes(minutosAbertura);
+      const slot = Time.fromMinutes(minutosAbertura);
 
-  const estaNoAlmoco =
-    inicioAlmoco &&
-    fimAlmoco &&
-    slot.isBetween(inicioAlmoco, fimAlmoco);
+      const estaNoAlmoco =
+        inicioAlmoco &&
+        fimAlmoco &&
+        slot.isBetween(inicioAlmoco, fimAlmoco);
 
-  if (!estaNoAlmoco) {
-    slotsPadronizados.push(slot.toString());
-  }
+      if (!estaNoAlmoco) {
+        slotsPadronizados.push(slot.toString());
+      }
 
-  minutosAbertura += intervalo;
-}
+      minutosAbertura += intervalo;
+    }
 
     // 4. Ir na tabela de agendamentos reais buscar o que já está ocupado
 
@@ -285,50 +289,51 @@ const fimAlmoco =
       this.appointmentsRepository.findBookedSlotsByDate(barberId, date),
       this.scheduleBlocksRepository.findBlocksByDate(barberId, date)
     ]);
-    console.log("horarios ocupados", horariosOcupados);
+
     // 5. Filtrar a lista total tirando o que já está ocupado no banco
     const bloqueioTotal = bloqueios.some(b => b.horaInicio === null && b.horaFim === null);
     if (bloqueioTotal) return [];
 
     const slotsLivres = slotsPadronizados.filter(slot => {
-  const horarioAtual = new Time(slot);
+      const horarioAtual = new Time(slot);
 
-  const ocupado = horariosOcupados.some(agendamento => {
-    const inicio = new Time(agendamento.inicio);
-    const fim = inicio.addMinutes(agendamento.duracao);
+      const ocupado = horariosOcupados.some(agendamento => {
+        const inicio = new Time(agendamento.inicio);
+        const fim = inicio.addMinutes(agendamento.duracao);
 
-    return horarioAtual.isBetween(inicio, fim);
-  });
+        return horarioAtual.isBetween(inicio, fim);
+      });
 
-  const bloqueado = bloqueios.some(b =>
-    slot >= (b.horaInicio ?? "") &&
-    slot < (b.horaFim ?? "")
-  );
+      const bloqueado = bloqueios.some(b =>
+        slot >= (b.horaInicio ?? "") &&
+        slot < (b.horaFim ?? "")
+      );
 
-  return !ocupado && !bloqueado;
-});
+      return !ocupado && !bloqueado;
+    });
+
     return slotsLivres;
   }
 
   private getStatusVisual(appointment: {
-  dataHora: Date;
-  totalDuracao: number;
-}) {
-  const agora = DateTime.now();
+    dataHora: Date;
+    totalDuracao: number;
+  }) {
+    const agora = DateTime.now();
 
-  const inicio = new DateTime(appointment.dataHora);
+    const inicio = new DateTime(appointment.dataHora);
 
-  const fim = inicio.addMinutes(appointment.totalDuracao);
+    const fim = inicio.addMinutes(appointment.totalDuracao);
 
-  if (agora.isBefore(inicio)) {
-    return "pendente";
+    if (agora.isBefore(inicio)) {
+      return "pendente";
+    }
+
+    if (agora.isBetween(inicio, fim)) {
+      return "em_andamento";
+    }
+
+    return "concluido";
   }
-
-  if (agora.isBetween(inicio, fim)) {
-    return "em_andamento";
-  }
-
-  return "concluido";
-}
 }
 
