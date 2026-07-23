@@ -25,7 +25,9 @@ businessHoursRoutes.put("/", async (req, res, next) => {
         trabalha: dia.trabalha,
         horaAbertura: dia.horaAbertura,
         horaFechamento: dia.horaFechamento,
-        intervaloMinutos: dia.intervaloMinutos
+        intervaloMinutos: dia.intervaloMinutos,
+        horaInicioAlmoco: dia.horaInicioAlmoco || null, 
+        horaFimAlmoco: dia.horaFimAlmoco || null
       });
     }
     return res.sendStatus(200);
