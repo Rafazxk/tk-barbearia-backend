@@ -103,25 +103,23 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     return appointment ?? null;
   }
 
-  async findByDate(barberId: number, dateStr: string) {
-    // dateStr vem do front como "2026-06-26"
+ async findByDate(barberId: number, dateStr: string) {
+  const selectedDate = DateTime.fromDateOnly(dateStr);
 
-    // Criamos o início do dia às 00:00:00 e o fim às 23:59:59 na data recebida
-    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+  const startOfDay = selectedDate.startOfDay().toDate();
+  const endOfDay = selectedDate.endOfDay().toDate();
 
-    return db
-      .select()
-      .from(appointmentsTable)
-      .where(
-        and(
-          eq(appointmentsTable.barbeiroId, barberId),
-          // Garante que pega qualquer hora dentro daquele dia específico
-          gte(appointmentsTable.dataHora, startOfDay),
-          lte(appointmentsTable.dataHora, endOfDay)
-        )
-      );
-  }
+  return db
+    .select()
+    .from(appointmentsTable)
+    .where(
+      and(
+        eq(appointmentsTable.barbeiroId, barberId),
+        gte(appointmentsTable.dataHora, startOfDay),
+        lte(appointmentsTable.dataHora, endOfDay)
+      )
+    );
+}
 
   async findServicesByAppointmentId(appointmentId: number) {
     return await db
@@ -313,8 +311,6 @@ export class AppointmentsRepository implements IAppointmentsRepository {
         lte(appointmentsTable.dataHora, fimDia)
       )
     );
-
-  console.log("=== RESULTADO DO BANCO ===");
 
   result.forEach(app => {
     console.log({

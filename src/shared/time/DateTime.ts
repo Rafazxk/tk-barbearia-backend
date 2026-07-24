@@ -10,11 +10,81 @@ export class DateTime {
   static now() {
     return new DateTime(new Date());
   }
-static fromLocalString(value: string) {
-  // Converte uma string tipo "2026-07-17T15:00:00" para Date local
-  // O construtor Date(string) sem o 'Z' trata como horário local
-  return new DateTime(new Date(value));
-}
+
+
+toLocalISOString() {
+    // Usa Intl.DateTimeFormat para extrair os componentes corretos baseados no fuso do negócio
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Recife", // ou America/Sao_Paulo (consistente com o resto da sua classe)
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(this.date);
+    const getPart = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+
+    const year = getPart("year");
+    const month = getPart("month");
+    const day = getPart("day");
+    const hour = getPart("hour");
+    const minute = getPart("minute");
+    const second = getPart("second");
+
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+  }
+
+static fromLocalString(value: string): DateTime {
+    const parts = value.split("T");
+
+    if (parts.length !== 2) {
+      throw new Error(`Data inválida: ${value}`);
+    }
+
+    const datePart = parts[0];
+    const timePart = parts[1];
+
+    if (datePart === undefined || timePart === undefined) {
+      throw new Error(`Data inválida: ${value}`);
+    }
+
+    const date = datePart.split("-").map(Number);
+    const time = timePart.split(":").map(Number);
+
+    if (date.length !== 3 || time.length < 2) {
+      throw new Error(`Data inválida: ${value}`);
+    }
+
+    const year = date[0];
+    const month = date[1];
+    const day = date[2];
+
+    const hour = time[0];
+    const minute = time[1];
+    const second = time[2] ?? 0;
+
+    if (
+      year === undefined ||
+      month === undefined ||
+      day === undefined ||
+      hour === undefined ||
+      minute === undefined
+    ) {
+      throw new Error(`Data inválida: ${value}`);
+    }
+
+    // CORREÇÃO: Cria a data assumindo explicitamente o padrão ISO UTC correspondente 
+    // ao horário de Brasília/Recife (-03:00) para que o servidor na nuvem não desloque as horas.
+    // Ex: "2026-06-06T08:00:00-03:00"
+    const isoWithOffset = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}-03:00`;
+
+    return new DateTime(new Date(isoWithOffset));
+  }
+
   static fromDate(date: Date) {
     return new DateTime(date);
   }

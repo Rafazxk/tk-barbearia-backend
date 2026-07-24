@@ -18,6 +18,14 @@ interface AppointmentBase {
   status: string;
 }
 
+export interface UpdateAppointmentDTO {
+  clienteNome?: string;
+  clienteTelefone?: string;
+  dataHora?: string;
+  barbeiroId?: number;
+  duracao?: number;
+  servicoIds?: number[];
+}
 export class AppointmentsService {
   private appointmentsRepository: IAppointmentsRepository;
   private businessHoursRepository: IBusinessHoursRepository;
@@ -56,18 +64,19 @@ export class AppointmentsService {
         const services = await this.appointmentsRepository.findServicesByAppointmentId(app.id);
         const totalPreco = services.reduce((sum, s) => sum + Number(s.preco), 0);
         const totalDuracao = services.reduce((sum, s) => sum + s.duracaoMinutos, 0);
-
-
-        
         return {
           id: app.id,
-          clienteNome: app.clienteNome,
-          clienteTelefone: app.clienteTelefone,
-          dataHora: app.dataHora,
-          barbeiroId: app.barbeiroId,
-          servicos: services,
-          totalPreco,
-          totalDuracao,
+    clienteNome: app.clienteNome,
+    clienteTelefone: app.clienteTelefone,
+
+    dataHora: DateTime
+        .fromDate(app.dataHora)
+        .toLocalISOString(),
+
+    barbeiroId: app.barbeiroId,
+    servicos: services,
+    totalPreco,
+    totalDuracao,
           statusVisual: this.getStatusVisual({
             dataHora: app.dataHora,
             totalDuracao,
@@ -114,8 +123,9 @@ export class AppointmentsService {
     duracao: number;
     servicoIds?: number[] | undefined;
   }) {
-  console.log("Dados recebidos no backend:", data.duracao)
+
     const dataAgendamento = DateTime.fromLocalString(data.dataHora);
+    
 
     const appointment = await this.appointmentsRepository.create({
       clienteNome: data.clienteNome,
@@ -166,63 +176,69 @@ export class AppointmentsService {
     return result;
   }
 
-  async updateAppointment(id: number, body: any) {
-   const updateData: any = {};
+async updateAppointment(
+  id: number,
+  body: UpdateAppointmentDTO
+) {
+  const updateData: any = {};
 
-  if (body.clienteNome !== undefined)
+  if (body.clienteNome !== undefined) {
     updateData.clienteNome = body.clienteNome;
+  }
 
-  if (body.clienteTelefone !== undefined)
+  if (body.clienteTelefone !== undefined) {
     updateData.clienteTelefone = body.clienteTelefone;
+  }
 
-  if (body.dataHora !== undefined)
-    updateData.dataHora = new Date(body.dataHora);
+  if (body.dataHora) {
+    updateData.dataHora = DateTime
+      .fromLocalString(body.dataHora)
+      .toDate();
+  }
 
-  if (body.barbeiroId !== undefined)
+  if (body.barbeiroId !== undefined) {
     updateData.barbeiroId = body.barbeiroId;
+  }
 
-  // FALTAVA ISSO
-  if (body.duracao !== undefined)
+  if (body.duracao !== undefined) {
     updateData.duracaoMinutos = body.duracao;
+  }
 
   const updated = await this.appointmentsRepository.update(id, updateData);
 
-    if (!updated) return null;
-
-    if (body.servicoIds !== undefined) {
-      await this.appointmentsRepository.unlinkServices(id);
-
-      if (body.servicoIds.length) {
-        await this.appointmentsRepository.linkServices(
-          id,
-          body.servicoIds
-        );
-      }
-    }
-
-    const [result] = await this.enrich([updated]);
-
-    if (!result) {
-      throw new Error("Erro ao enriquecer o agendamento.");
-    }
-
-    const barber = await this.barbersRepository.findById(
-      result.barbeiroId
-    );
-
-    if (barber) {
-      try {
-        await this.whatsappService.notifyAppointmentUpdated(
-          barber,
-          result
-        );
-      } catch (error) {
-        console.error("Erro ao enviar WhatsApp:", error);
-      }
-    }
-
-    return result;
+  if (!updated) {
+    return null;
   }
+
+  if (body.servicoIds) {
+    await this.appointmentsRepository.unlinkServices(id);
+
+    if (body.servicoIds.length > 0) {
+      await this.appointmentsRepository.linkServices(
+        id,
+        body.servicoIds
+      );
+    }
+  }
+
+  const [result] = await this.enrich([updated]);
+
+  if (!result) {
+    throw new Error("Erro ao enriquecer o agendamento.");
+  }
+
+  const barber = await this.barbersRepository.findById(result.barbeiroId);
+
+  if (barber) {
+    try {
+      await this.whatsappService.notifyAppointmentUpdated(barber, result);
+    } catch (error) {
+      console.error("Erro ao enviar WhatsApp:", error);
+    }
+  }
+
+  return result;
+}
 
   async deleteAppointment(id: number) {
     return await this.appointmentsRepository.delete(id);
