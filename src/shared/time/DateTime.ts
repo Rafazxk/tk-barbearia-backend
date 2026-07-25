@@ -55,6 +55,7 @@ static fromLocalString(value: string): DateTime {
     const date = datePart.split("-").map(Number);
     const time = timePart.split(":").map(Number);
 
+    
     if (date.length !== 3 || time.length < 2) {
       throw new Error(`Data inválida: ${value}`);
     }
@@ -80,7 +81,7 @@ static fromLocalString(value: string): DateTime {
     // CORREÇÃO: Cria a data assumindo explicitamente o padrão ISO UTC correspondente 
     // ao horário de Brasília/Recife (-03:00) para que o servidor na nuvem não desloque as horas.
     // Ex: "2026-06-06T08:00:00-03:00"
-    const isoWithOffset = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}-03:00`;
+    const isoWithOffset = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
 
     return new DateTime(new Date(isoWithOffset));
   }
