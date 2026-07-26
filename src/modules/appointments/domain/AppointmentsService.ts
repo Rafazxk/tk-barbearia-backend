@@ -160,7 +160,7 @@ console.log("formatTime:", dt.formatTime());
   const second = timePieces[2] ?? 0;
 
   // Cria o objeto Date preservando exatamente o horário local
-  const dataAgendamento = new Date(`${data.dataHora}-03:00`);
+  const dataAgendamento = new Date(Date.UTC(year, month - 1, day, hour + 3, minute, second));
 
   console.log("Date criada:", dataAgendamento);
   console.log("ISO:", dataAgendamento.toISOString());  
