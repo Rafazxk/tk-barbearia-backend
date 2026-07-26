@@ -130,71 +130,91 @@ console.log("formatTime:", dt.formatTime());
     return await this.appointmentsRepository.listByClientPhone(phone);
   }
 
-  async createAppointment(data: {
-    clienteNome: string;
-    clienteTelefone: string;
-    dataHora: string;
-    barbeiroId: number;
-    duracao: number;
-    servicoIds?: number[] | undefined;
-  }) {
+ async createAppointment(data: {
+  clienteNome: string;
+  clienteTelefone: string;
+  dataHora: string;
+  barbeiroId: number;
+  duracao: number;
+  servicoIds?: number[] | undefined;
+}) {
+  console.log("Recebido:", data.dataHora);
 
-    console.log("Recebido:", data.dataHora);
-
-    const dataAgendamento = DateTime.fromLocalString(data.dataHora);
-    
-    console.log("Date criada:", dataAgendamento.toDate());
-    console.log("ISO:", dataAgendamento.toDate().toISOString());  
-    const appointment = await this.appointmentsRepository.create({
-      clienteNome: data.clienteNome,
-      clienteTelefone: data.clienteTelefone,
-      dataHora: dataAgendamento.toDate(),
-      barbeiroId: data.barbeiroId,
-      duracaoMinutos: data.duracao,
-    });
-
-    if (data.servicoIds?.length) {
-      await this.appointmentsRepository.linkServices(appointment.id, data.servicoIds);
-    }
-
-    const [result] = await this.enrich([appointment]);
-    if (!result) throw new Error("Erro ao enriquecer o agendamento.");
-
-    const barber = await this.barbersRepository.findById(result.barbeiroId);
-    if (!barber) throw new Error("Barbeiro não encontrado.");
-
-    SocketService.sendNotificationToBarber(result.barbeiroId, "new-appointment", {
-      id: result.id,
-      clienteNome: result.clienteNome,
-      dataHora: result.dataHora,
-      totalPreco: result.totalPreco,
-      totalDuracao: result.totalDuracao,
-      servicos: result.servicos.map((s: any) => s.nome)
-    });
-
-    try {
-      await this.whatsappService.notifyAppointmentCreated(barber, result);
-    } catch (error) {
-      console.error("Erro ao enviar WhatsApp:");
-    }
-    const dataFormatada = DateTime.fromDate(appointment.dataHora).formatTime();
-
-    console.log("data formatada", dataFormatada)
-
-    try {
-      await this.pushService.sendToBarber(
-        result.barbeiroId,
-        "Novo Agendamento! ✂️",
-        `Cliente ${result.clienteNome} agendou para ${dataFormatada}`
-      );
-    } catch (err) {
-      console.error("Falha ao enviar push:", err);
-    }
-
-console.log("result", result.dataHora);
-
-    return result;
+  if (!data.dataHora) {
+    throw new Error("A data e hora do agendamento são obrigatórias.");
   }
+
+  // Tratamento seguro para evitar erros de undefined
+  const parts = data.dataHora.split("T");
+  const datePart = parts[0] ?? "";
+  const timePart = parts[1] ?? "00:00:00";
+
+  const datePieces = datePart.split("-").map(Number);
+  const year = datePieces[0] ?? new Date().getFullYear();
+  const month = datePieces[1] ?? 1;
+  const day = datePieces[2] ?? 1;
+
+  const timePieces = timePart.split(".")[0]?.split(":").map(Number) ?? [0, 0, 0];
+  const hour = timePieces[0] ?? 0;
+  const minute = timePieces[1] ?? 0;
+  const second = timePieces[2] ?? 0;
+
+  // Cria o objeto Date preservando exatamente o horário local
+  const dataAgendamento = new Date(year, month - 1, day, hour, minute, second);
+
+  console.log("Date criada:", dataAgendamento);
+  console.log("ISO:", dataAgendamento.toISOString());  
+
+  const appointment = await this.appointmentsRepository.create({
+    clienteNome: data.clienteNome,
+    clienteTelefone: data.clienteTelefone,
+    dataHora: dataAgendamento,
+    barbeiroId: data.barbeiroId,
+    duracaoMinutos: data.duracao,
+  });
+
+  if (data.servicoIds?.length) {
+    await this.appointmentsRepository.linkServices(appointment.id, data.servicoIds);
+  }
+
+  const [result] = await this.enrich([appointment]);
+  if (!result) throw new Error("Erro ao enriquecer o agendamento.");
+
+  const barber = await this.barbersRepository.findById(result.barbeiroId);
+  if (!barber) throw new Error("Barbeiro não encontrado.");
+
+  SocketService.sendNotificationToBarber(result.barbeiroId, "new-appointment", {
+    id: result.id,
+    clienteNome: result.clienteNome,
+    dataHora: result.dataHora,
+    totalPreco: result.totalPreco,
+    totalDuracao: result.totalDuracao,
+    servicos: result.servicos.map((s: any) => s.nome)
+  });
+
+  try {
+    await this.whatsappService.notifyAppointmentCreated(barber, result);
+  } catch (error) {
+    console.error("Erro ao enviar WhatsApp:", error);
+  }
+
+  const dataFormatada = DateTime.fromDate(appointment.dataHora).formatTime();
+  console.log("data formatada", dataFormatada);
+
+  try {
+    await this.pushService.sendToBarber(
+      result.barbeiroId,
+      "Novo Agendamento! ✂️",
+      `Cliente ${result.clienteNome} agendou para ${dataFormatada}`
+    );
+  } catch (err) {
+    console.error("Falha ao enviar push:", err);
+  }
+
+  console.log("result", result.dataHora);
+
+  return result;
+}
 
   async updateAppointment(
   id: number,
