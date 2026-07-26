@@ -1,31 +1,30 @@
 import { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { AppointmentsService } from "../domain/AppointmentsService.js";
-import { error } from "console";
+
 import { type IAppointmentsFilters } from "../repositories/IAppointmentsRepository.js";
 
-const SummaryQueryParams = z.object({
+  const SummaryQueryParams = z.object({
   barberId: z.coerce.number({ message: "barberId precisa ser um número válido" })
-});
+  });
 
-const ListAppointmentsQueryParams = z.object({
+  const ListAppointmentsQueryParams = z.object({
   date: z.string().optional(),
   barberId: z.coerce.number().optional(),
   order: z.enum(["asc", "desc"]).optional(),
   onlyPending: z.coerce.boolean().optional(),
-});
+  });
 
-// Schema original do Admin
-const CreateAppointmentBody = z.object({
+  const CreateAppointmentBody = z.object({
   clienteNome: z.string().min(1, "Nome é obrigatório"),
   clienteTelefone: z.string().min(1, "Telefone é obrigatório"),
   dataHora: z.string(),
   barbeiroId: z.number(),
   servicoIds: z.array(z.number()).optional(),
   duracao: z.coerce.number().min(15)
-});
+  });
 
-const CreateClientBookingBody = z.object({
+  const CreateClientBookingBody = z.object({
   clienteNome: z.string().min(1, "Nome é obrigatório"),
   clienteTelefone: z.string().min(1, "Telefone é obrigatório"),
   dataHora: z.string().min(1, "Data e hora são obrigatórias"),
@@ -44,14 +43,14 @@ const CreateClientBookingBody = z.object({
     })
   ).optional().default([]),
   duracao: z.coerce.number().min(15)
-});
+  });
 
-export class AppointmentController {
+  export class AppointmentController {
   constructor(private appointmentsService: AppointmentsService) {
     this.listAvailable = this.listAvailable.bind(this);
     this.createClientBooking = this.createClientBooking.bind(this);
     
-  }
+  };
 
   getClientAppointments = async (req: Request, res: Response): Promise<Response> => {
     try {
@@ -62,8 +61,6 @@ export class AppointmentController {
       return res.status(400).json({ error: "Telefone inválido ou não informado." });
     }
 
-              
-      // Garanta que seu service implemente esse método de busca por telefone
       const result = await this.appointmentsService.listByClientPhone(phone);
       
       return res.json(result);
@@ -83,7 +80,7 @@ export class AppointmentController {
       console.error("Erro ao buscar clientes frequentes:", error);
       next(error);
     }
-  }
+  };
 
   summary = async (req: Request, res: Response): Promise<Response> => {
     const query = SummaryQueryParams.safeParse(req.query);
@@ -138,7 +135,7 @@ export class AppointmentController {
   } catch (err) {
     return res.status(500).json({ error: "Internal server error" });
   }
-};
+  };
 
   getById = async (req: Request, res: Response): Promise<Response> => {
     try {
@@ -158,7 +155,6 @@ export class AppointmentController {
     }
   };
 
-  // Mantém intacto para criação de agendamento por dentro do Admin
   create = async (req: Request, res: Response): Promise<Response> => {
     const parsed = CreateAppointmentBody.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
@@ -196,7 +192,7 @@ export class AppointmentController {
     console.error("ERRO DETALHADO NO BACKEND:", { error: err });
     return res.status(500).json({ error: "Internal server error" });
   }
-};
+  };
 
   delete = async (req: Request, res: Response): Promise<Response> => {
     try {
@@ -259,7 +255,7 @@ export class AppointmentController {
     } catch (err) {
       return res.status(500).json({ error: "Internal server error" });
     }
-  }
+  };
 
   async listAvailable(req: Request, res: Response, next: NextFunction): Promise<Response> {
     try {
@@ -283,5 +279,5 @@ export class AppointmentController {
       console.error("❌ ERRO AO LISTAR HORÁRIOS DISPONÍVEIS:", err);
       return res.status(500).json({ error: "Erro interno ao listar horários disponíveis." });
     }
-  }
+  };
 }
