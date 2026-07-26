@@ -59,48 +59,35 @@ export class AppointmentsService {
 
   
   private async enrich(baseAppointments: AppointmentBase[]) {
-    return await Promise.all(
-      baseAppointments.map(async (app) => {
-        const services = await this.appointmentsRepository.findServicesByAppointmentId(app.id);
-        const totalPreco = services.reduce((sum, s) => sum + Number(s.preco), 0);
-        const totalDuracao = services.reduce((sum, s) => sum + s.duracaoMinutos, 0);
-
-        console.log("===== APPOINTMENT =====");
-console.log("Date:", app.dataHora);
-console.log("toISOString:", app.dataHora.toISOString());
-console.log("toString:", app.dataHora.toString());
-console.log("getHours:", app.dataHora.getHours());
-console.log("getUTCHours:", app.dataHora.getUTCHours());
-console.log("=======================");
-
-const dt = DateTime.fromDate(app.dataHora);
-
-console.log("toLocalISOString:", dt.toLocalISOString());
-console.log("formatTime:", dt.formatTime());
-
-        return {
-          id: app.id,
-    clienteNome: app.clienteNome,
-    clienteTelefone: app.clienteTelefone,
-
-    dataHora: DateTime
-        .fromDate(app.dataHora)
-        .toLocalISOString(),
-
-    barbeiroId: app.barbeiroId,
-    servicos: services,
-    totalPreco,
-    totalDuracao,
-          statusVisual: this.getStatusVisual({
-            dataHora: app.dataHora,
-            totalDuracao,
-          }),
-        };
-      })
+  return await Promise.all(
+    baseAppointments.map(async (app) => {
+      const services = await this.appointmentsRepository.findServicesByAppointmentId(app.id);
+      const totalPreco = services.reduce((sum, s) => sum + Number(s.preco), 0);
       
-    );
-    
-  }
+      // Prioriza a duração salva no agendamento (app.duracaoMinutos). Se não houver, soma os serviços.
+      const totalDuracao = app.duracaoMinutos ?? services.reduce((sum, s) => sum + s.duracaoMinutos, 0);
+
+      return {
+        id: app.id,
+        clienteNome: app.clienteNome,
+        clienteTelefone: app.clienteTelefone,
+
+        dataHora: DateTime
+          .fromDate(app.dataHora)
+          .toLocalISOString(),
+
+        barbeiroId: app.barbeiroId,
+        servicos: services,
+        totalPreco,
+        totalDuracao,
+        statusVisual: this.getStatusVisual({
+          dataHora: app.dataHora,
+          totalDuracao,
+        }),
+      };
+    })
+  );
+}
 
   async getDashboardSummary(barberId: number) {
     const stats = await this.appointmentsRepository.getStatsToday(barberId);

@@ -91,6 +91,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
         clienteTelefone: appointmentsTable.clienteTelefone,
         dataHora: appointmentsTable.dataHora,
         barbeiroId: appointmentsTable.barbeiroId,
+        duracaoMinutos: appointmentsTable.duracaoMinutos, 
 
         barbeiroNome: barbersTable.nome,
         barbeiroTelefone: barbersTable.telefone,
@@ -184,12 +185,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number, duracaoMinutos: number }) {
-    console.log("Vai salvar:", data.dataHora);
-    console.log("ISO:", data.dataHora.toISOString());
-
     const [newAppointment] = await db.insert(appointmentsTable).values(data).returning();
-
-    console.log("Retornou do banco:", newAppointment);
     return newAppointment;
   }
 
