@@ -65,8 +65,6 @@ export class AppointmentController {
               
       // Garanta que seu service implemente esse método de busca por telefone
       const result = await this.appointmentsService.listByClientPhone(phone);
-
-      console.log(JSON.stringify(result, null, 2));
       
       return res.json(result);
     } catch (err: any) {
@@ -182,9 +180,6 @@ export class AppointmentController {
   update = async (req: Request, res: Response): Promise<Response> => {
   try {
     const id = Number(req.params.id);
-
-    console.log("Update Appointment ->", { id, body: req.body });
-
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
     if (!req.body || Object.keys(req.body).length === 0) {

@@ -5,7 +5,6 @@ import dotenv from "dotenv";
 import * as schema from "./schema/index.js";
 import * as relations from "./relations/index.js";
 
-console.log(Object.keys(schema));
 // Apenas registra as relations
 
 

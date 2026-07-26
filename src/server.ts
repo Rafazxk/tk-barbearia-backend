@@ -35,8 +35,6 @@ app.use(cors({
     // Permite conexões sem origem (ex: mobile apps, ferramentas de API, ou requisições internas)
     if (!origin) return callback(null, true);
     
-    // Log para você ver o que está acontecendo no log do Render
-    console.log("Tentativa de acesso de origem:", origin);
 
     const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".vercel.app");
     

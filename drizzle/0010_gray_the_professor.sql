@@ -1,0 +1,1 @@
+ALTER TABLE "agendamentos" ALTER COLUMN "data_hora" SET DATA TYPE timestamp with time zone;

@@ -1,38 +1,40 @@
 import { db, appointmentsTable, appointmentServicesTable, servicesTable, barbersTable, agendaBloqueiosTable } from "../../../database/index.js";
-import { eq, and, or, isNull, gte, lte, lt, sql, asc, desc } from "drizzle-orm";
+import { eq, and, or, isNull, gte, lte, lt, sql, asc, desc, count, max, sum } from "drizzle-orm";
 import { type IAppointmentsRepository, type IAppointmentsFilters, type IBookedSlot } from "./IAppointmentsRepository.js";
 import { type IClientAppointment } from "./IClienteRepository.js";
 import { DateTime } from "../../../shared/time/DateTime.js";
 
 export class AppointmentsRepository implements IAppointmentsRepository {
 
+ async findFrequentClients(barberId?: number) {
+  const conditions = [];
 
-
-  async findFrequentClients(barberId?: number) {
-    const conditions = [];
-
-    if (barberId) {
-      conditions.push(eq(appointmentsTable.barbeiroId, barberId));
-    }
-
-    return await db
-      .select({
-        id: appointmentsTable.id,
-        clienteNome: appointmentsTable.clienteNome,
-        clienteTelefone: appointmentsTable.clienteTelefone,
-        dataHora: appointmentsTable.dataHora,
-        barbeiroId: appointmentsTable.barbeiroId,
-
-        barbeiroNome: barbersTable.nome,
-        barbeiroTelefone: barbersTable.telefone,
-      })
-      .from(appointmentsTable)
-      .leftJoin(
-        barbersTable,
-        eq(barbersTable.id, appointmentsTable.barbeiroId)
-      )
-      .where(conditions.length ? and(...conditions) : undefined);
+  if (barberId) {
+    conditions.push(eq(appointmentsTable.barbeiroId, barberId));
   }
+
+  return await db
+    .select({
+      id: appointmentsTable.clienteTelefone, // Usando o telefone como ID único
+      nome: appointmentsTable.clienteNome,
+      telefone: appointmentsTable.clienteTelefone,
+      totalCortes: count(appointmentsTable.id).as("totalCortes"),
+      ultimoCorte: max(appointmentsTable.dataHora).as("ultimoCorte"),
+      totalGasto: sum(servicesTable.preco).as("totalGasto"),
+    })
+    .from(appointmentsTable)
+    .leftJoin(
+      appointmentServicesTable,
+      eq(appointmentServicesTable.appointmentId, appointmentsTable.id)
+    )
+    .leftJoin(
+      servicesTable,
+      eq(servicesTable.id, appointmentServicesTable.serviceId)
+    )
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(appointmentsTable.clienteTelefone, appointmentsTable.clienteNome)
+    .orderBy(sql`"totalCortes" DESC`);
+}
 
   async findAll(filters?: IAppointmentsFilters) {
     const conditions = [];
@@ -133,7 +135,6 @@ export class AppointmentsRepository implements IAppointmentsRepository {
       .innerJoin(servicesTable, eq(appointmentServicesTable.serviceId, servicesTable.id))
       .where(eq(appointmentServicesTable.appointmentId, appointmentId));
   }
-  // telefone
 
   async listByClientPhone(clientPhone: string): Promise<IClientAppointment[]> {
     const appointments = await db.query.appointmentsTable.findMany({
@@ -181,9 +182,14 @@ export class AppointmentsRepository implements IAppointmentsRepository {
       };
     });
   }
-//cr
+
   async create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number, duracaoMinutos: number }) {
+    console.log("Vai salvar:", data.dataHora);
+    console.log("ISO:", data.dataHora.toISOString());
+
     const [newAppointment] = await db.insert(appointmentsTable).values(data).returning();
+
+    console.log("Retornou do banco:", newAppointment);
     return newAppointment;
   }
 
@@ -209,9 +215,10 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async getStatsToday(barberId: number) {
-    const now = new Date();
-    const startToday = new Date(now.setUTCHours(0, 0, 0, 0));
-    const endToday = new Date(now.setUTCHours(23, 59, 59, 999));
+   const now = DateTime.now();
+
+  const startToday = now.startOfDay().toDate();
+  const endToday = now.endOfDay().toDate();
 
     // Agendamentos de hoje
     const [todayCount] = await db
@@ -249,7 +256,9 @@ export class AppointmentsRepository implements IAppointmentsRepository {
 
     // 1. Pega os agendamentos já marcados
     const bookedAppointments = await this.findByDate(barberId, date);
-    const bookedTimes = bookedAppointments.map(app => app.dataHora.toISOString());
+    const bookedTimes = bookedAppointments.map((app) =>
+  DateTime.fromDate(app.dataHora).formatTime()
+);
 
     // 2. Busca bloqueios para este barbeiro OU bloqueios gerais (NULL) na data
     const bloqueios = await db.select()
@@ -266,28 +275,24 @@ export class AppointmentsRepository implements IAppointmentsRepository {
 
     const allSlots = [];
     for (let hour = 9; hour <= 17; hour++) {
-      const slotTime = new Date(`${date}T${hour.toString().padStart(2, '0')}:00:00Z`);
-      const isoString = slotTime.toISOString();
+   const horaSlot = `${hour.toString().padStart(2, "0")}:00`;
+   
+   const estaOcupado = bookedTimes.includes(horaSlot);
 
-      // 3. Verifica se o horário está ocupado por cliente OU por bloqueio
-      const estaOcupado = bookedTimes.includes(isoString);
+  const estaBloqueado = bloqueios.some((b) => {
+    if (b.tipo === "data") return true;
 
-      const estaBloqueado = bloqueios.some(b => {
-        // Se for bloqueio de data inteira
-        if (b.tipo === 'data') return true;
-
-        // Se for bloqueio de horário, verifica se o horário do loop está no intervalo
-        if (b.tipo === 'horario' && b.horaInicio && b.horaFim) {
-          const horaSlot = `${hour.toString().padStart(2, '0')}:00`;
-          return horaSlot >= b.horaInicio && horaSlot <= b.horaFim;
-        }
-        return false;
-      });
-
-      if (!estaOcupado && !estaBloqueado) {
-        allSlots.push(isoString);
-      }
+    if (b.tipo === "horario" && b.horaInicio && b.horaFim) {
+      return horaSlot >= b.horaInicio && horaSlot <= b.horaFim;
     }
+
+    return false;
+  });
+
+  if (!estaOcupado && !estaBloqueado) {
+    allSlots.push(`${date}T${horaSlot}:00`);
+  }
+}
 
     return allSlots;
   }
@@ -295,8 +300,13 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   async findBookedSlotsByDate(barberId: number, date: string): Promise<IBookedSlot[]> {
   console.log({ barberId, date });
 
-  const inicioDia = new Date(`${date}T00:00:00`);
-  const fimDia = new Date(`${date}T23:59:59`);
+  const inicioDia = DateTime.fromDateOnly(date)
+  .startOfDay()
+  .toDate();
+
+const fimDia = DateTime.fromDateOnly(date)
+  .endOfDay()
+  .toDate();
 
   const result = await db
     .select({
@@ -313,19 +323,16 @@ export class AppointmentsRepository implements IAppointmentsRepository {
     );
 
   result.forEach(app => {
-    console.log({
-      dataHora: app.dataHora,
-      iso: app.dataHora.toISOString(),
-      local: app.dataHora.toString(),
-      getHours: app.dataHora.getHours(),
-      getUTCHours: app.dataHora.getUTCHours(),
-      duracao: app.duracaoMinutos,
-    });
+  console.log({
+    valor: app.dataHora,
+    tipo: typeof app.dataHora,
+    constructor: app.dataHora?.constructor?.name,
   });
+});
 
   return result.map(app => ({
-    inicio: `${String(app.dataHora.getHours()).padStart(2, "0")}:${String(app.dataHora.getMinutes()).padStart(2, "0")}`,
+    inicio: DateTime.fromDate(app.dataHora).formatTime(),
     duracao: app.duracaoMinutos
   }));
-}
+  } 
 }

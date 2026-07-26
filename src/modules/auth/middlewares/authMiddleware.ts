@@ -16,12 +16,6 @@ declare global {
 }
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): any {
-  console.log("--> MIDDLEWARE FOI CHAMADO!");
-  
-  // 1. Logs de Debug para o Render (para você ver exatamente o que chega)
-  console.log("Headers recebidos:", req.headers.authorization);
-  console.log("Cookies recebidos:", req.cookies);
-
   // 2. Extração segura
   let token = req.headers.authorization?.startsWith("Bearer ") 
     ? req.headers.authorization.split(" ")[1] 

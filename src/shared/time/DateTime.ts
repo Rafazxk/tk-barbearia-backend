@@ -39,52 +39,34 @@ toLocalISOString() {
   }
 
 static fromLocalString(value: string): DateTime {
-    const parts = value.split("T");
+  const [datePart, timePart] = value.split("T");
 
-    if (parts.length !== 2) {
-      throw new Error(`Data inválida: ${value}`);
-    }
-
-    const datePart = parts[0];
-    const timePart = parts[1];
-
-    if (datePart === undefined || timePart === undefined) {
-      throw new Error(`Data inválida: ${value}`);
-    }
-
-    const date = datePart.split("-").map(Number);
-    const time = timePart.split(":").map(Number);
-
-    
-    if (date.length !== 3 || time.length < 2) {
-      throw new Error(`Data inválida: ${value}`);
-    }
-
-    const year = date[0];
-    const month = date[1];
-    const day = date[2];
-
-    const hour = time[0];
-    const minute = time[1];
-    const second = time[2] ?? 0;
-
-    if (
-      year === undefined ||
-      month === undefined ||
-      day === undefined ||
-      hour === undefined ||
-      minute === undefined
-    ) {
-      throw new Error(`Data inválida: ${value}`);
-    }
-
-    // CORREÇÃO: Cria a data assumindo explicitamente o padrão ISO UTC correspondente 
-    // ao horário de Brasília/Recife (-03:00) para que o servidor na nuvem não desloque as horas.
-    // Ex: "2026-06-06T08:00:00-03:00"
-    const isoWithOffset = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
-
-    return new DateTime(new Date(isoWithOffset));
+  if (!datePart || !timePart) {
+    throw new Error(`Data inválida: ${value}`);
   }
+
+  const [year , month, day] = datePart.split("-").map(Number);
+  const [hour, minute, second = 0] = timePart.split(":").map(Number);
+
+
+  
+  const date = new DateTime(  
+    new Date(
+    year!,
+    month! - 1,
+    day!,
+    hour!,
+    minute!,
+    second
+  )
+);
+
+console.log("Timezone do servidor:", Intl.DateTimeFormat().resolvedOptions().timeZone);
+console.log("Date:", date);
+console.log("ISO:", date.toISOString());
+
+return date;
+}
 
   static fromDate(date: Date) {
     return new DateTime(date);

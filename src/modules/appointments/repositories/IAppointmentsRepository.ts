@@ -8,7 +8,7 @@ export interface IBookedSlot {
 export interface IAppointmentInput {
   clienteNome: string;
   clienteTelefone: string;
-  dataHora: Date;
+  dataHora: string;
   barbeiroId: number;
   duracaoMinutos: number;
 }

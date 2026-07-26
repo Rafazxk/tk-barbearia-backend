@@ -1,11 +1,14 @@
-import { pgTable, serial, varchar, timestamp, integer, decimal} from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, integer, decimal } from "drizzle-orm/pg-core";
 import { barbersTable } from "./barber.schema.js";
 
 export const appointmentsTable = pgTable("agendamentos", {
   id: serial("id").primaryKey(),
   clienteNome: varchar("cliente_nome", { length: 255 }).notNull(),
   clienteTelefone: varchar("cliente_telefone", { length: 20 }).notNull(),
-  dataHora: timestamp("data_hora").notNull(),
+  dataHora: timestamp("data_hora", {
+    withTimezone: true,
+    mode: "date",
+  }).notNull(),
   barbeiroId: integer("barbeiro_id").references(() => barbersTable.id).notNull(),
   duracaoMinutos: integer("duracao_minutos")
     .notNull()

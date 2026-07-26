@@ -51,7 +51,7 @@ export class AppointmentsService {
   }
 
   async getFrequentClients(barberId?: number) {
-    // Chama a query agregadora do Drizzle que criamos no passo anterior
+    
     const frequentClients = await this.appointmentsRepository.findFrequentClients(barberId);
 
     return frequentClients;
@@ -64,6 +64,20 @@ export class AppointmentsService {
         const services = await this.appointmentsRepository.findServicesByAppointmentId(app.id);
         const totalPreco = services.reduce((sum, s) => sum + Number(s.preco), 0);
         const totalDuracao = services.reduce((sum, s) => sum + s.duracaoMinutos, 0);
+
+        console.log("===== APPOINTMENT =====");
+console.log("Date:", app.dataHora);
+console.log("toISOString:", app.dataHora.toISOString());
+console.log("toString:", app.dataHora.toString());
+console.log("getHours:", app.dataHora.getHours());
+console.log("getUTCHours:", app.dataHora.getUTCHours());
+console.log("=======================");
+
+const dt = DateTime.fromDate(app.dataHora);
+
+console.log("toLocalISOString:", dt.toLocalISOString());
+console.log("formatTime:", dt.formatTime());
+
         return {
           id: app.id,
     clienteNome: app.clienteNome,
@@ -83,7 +97,9 @@ export class AppointmentsService {
           }),
         };
       })
+      
     );
+    
   }
 
   async getDashboardSummary(barberId: number) {
@@ -111,7 +127,6 @@ export class AppointmentsService {
   }
 
   async listByClientPhone(phone: string) {
-    // O service apenas delega a chamada para o repositório
     return await this.appointmentsRepository.listByClientPhone(phone);
   }
 
@@ -124,9 +139,12 @@ export class AppointmentsService {
     servicoIds?: number[] | undefined;
   }) {
 
+    console.log("Recebido:", data.dataHora);
+
     const dataAgendamento = DateTime.fromLocalString(data.dataHora);
     
-
+    console.log("Date criada:", dataAgendamento.toDate());
+    console.log("ISO:", dataAgendamento.toDate().toISOString());  
     const appointment = await this.appointmentsRepository.create({
       clienteNome: data.clienteNome,
       clienteTelefone: data.clienteTelefone,
@@ -173,10 +191,12 @@ export class AppointmentsService {
       console.error("Falha ao enviar push:", err);
     }
 
+console.log("result", result.dataHora);
+
     return result;
   }
 
-async updateAppointment(
+  async updateAppointment(
   id: number,
   body: UpdateAppointmentDTO
 ) {
@@ -245,8 +265,8 @@ async updateAppointment(
   }
 
   async listAvailableSlots(barberId: number, date: string): Promise<string[]> {
-    const dataParsed = new Date(`${date}T00:00:00`);
-    const diaSemana = dataParsed.getDay();
+    const dataParsed = DateTime.fromDateOnly(date);
+    const diaSemana = dataParsed.toDate().getDay();
 
     const scheduleConfigs = await this.businessHoursRepository.getSchedule(barberId);
 
