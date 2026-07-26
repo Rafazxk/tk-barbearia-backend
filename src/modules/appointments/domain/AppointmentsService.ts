@@ -160,7 +160,7 @@ console.log("formatTime:", dt.formatTime());
   const second = timePieces[2] ?? 0;
 
   // Cria o objeto Date preservando exatamente o horário local
-  const dataAgendamento = new Date(Date.UTC(year, month - 1, day, hour + 3, minute, second));
+  const dataAgendamento = DateTime.fromLocalString(data.dataHora);
 
   console.log("Date criada:", dataAgendamento);
   console.log("ISO:", dataAgendamento.toISOString());  
@@ -168,7 +168,7 @@ console.log("formatTime:", dt.formatTime());
   const appointment = await this.appointmentsRepository.create({
     clienteNome: data.clienteNome,
     clienteTelefone: data.clienteTelefone,
-    dataHora: dataAgendamento,
+    dataHora: dataAgendamento.toDate(),
     barbeiroId: data.barbeiroId,
     duracaoMinutos: data.duracao,
   });

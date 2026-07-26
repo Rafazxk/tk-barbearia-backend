@@ -39,34 +39,23 @@ toLocalISOString() {
   }
 
 static fromLocalString(value: string): DateTime {
-  const [datePart, timePart] = value.split("T");
+    const [datePart, timePart] = value.split("T");
 
-  if (!datePart || !timePart) {
-    throw new Error(`Data inválida: ${value}`);
+    if (!datePart || !timePart) {
+      throw new Error(`Data inválida: ${value}`);
+    }
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute, second = 0] = timePart.split(".")[0]!.split(":").map(Number);
+
+    // Cria o objeto Date fixando explicitamente o fuso de Recife (-03:00)
+    // Isso garante que 14:00 local vira o timestamp exato, sem sofrer desvios no servidor UTC
+    const isoWithOffset = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}-03:00`;
+    
+    const date = new DateTime(new Date(isoWithOffset));
+
+    return date;
   }
-
-  const [year , month, day] = datePart.split("-").map(Number);
-  const [hour, minute, second = 0] = timePart.split(":").map(Number);
-
-
-  
-  const date = new DateTime(  
-    new Date(
-    year!,
-    month! - 1,
-    day!,
-    hour!,
-    minute!,
-    second
-  )
-);
-
-console.log("Timezone do servidor:", Intl.DateTimeFormat().resolvedOptions().timeZone);
-console.log("Date:", date);
-console.log("ISO:", date.toISOString());
-
-return date;
-}
 
   static fromDate(date: Date) {
     return new DateTime(date);
