@@ -31,6 +31,28 @@ const blockData = {
     return res.status(201).json(item);
   } catch (e) { next(e); }
 });
+scheduleBlocksRoutes.patch("/:id", async (req: Request, res: Response, next: Function) => {
+  try {
+    const { tipo, descricao, dataInicio, horaInicio, horaFim, barbeiroId } = req.body;
+
+    const blockData = {
+      tipo,
+      descricao,
+      dataInicio,
+      horaInicio: (horaInicio && horaInicio !== "") ? horaInicio : null,
+      horaFim: (horaFim && horaFim !== "") ? horaFim : null,
+      barbeiroId: (barbeiroId && barbeiroId !== "" && barbeiroId !== "null")
+        ? Number(barbeiroId)
+        : null,
+    };
+
+    const item = await repository.update(Number(req.params.id), blockData);
+
+    return res.json(item);
+  } catch (e) {
+    next(e);
+  }
+});
 
 scheduleBlocksRoutes.delete("/:id", async (req: Request, res: Response, next: Function) => {
   try {

@@ -13,8 +13,11 @@ import { categoryRoutes } from "./modules/appointments/routes/categoriesRoutes.j
 import { productRoutes } from "./modules/appointments/routes/productsRoutes.js";
 import { scheduleBlocksRoutes } from "./modules/appointments/routes/scheduleBlocksRoutes.js";
 import { businessHoursRoutes } from "./modules/appointments/routes/businessHoursRoutes.js";
+
+
 import path from "path";
 import { fileURLToPath } from "url";
+import financialRouter from "./modules/financial/routes/financialRoutes.js";
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -66,6 +69,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/schedule-blocks", scheduleBlocksRoutes);
 app.use("/api/business-hours", businessHoursRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use('/api/financial', financialRouter);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "online", message: "Servidor voando baixo!" });

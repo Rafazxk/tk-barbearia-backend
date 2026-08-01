@@ -331,4 +331,44 @@ const fimDia = DateTime.fromDateOnly(date)
     duracao: app.duracaoMinutos
   }));
   } 
+
+  async findRecebimentosByPeriod(startDate: string, endDate: string, barberId?: number) {
+  const inicio = DateTime.fromDateOnly(startDate).startOfDay().toDate();
+  const fim = DateTime.fromDateOnly(endDate).endOfDay().toDate();
+
+  const conditions = [
+    gte(appointmentsTable.dataHora, inicio),
+    lte(appointmentsTable.dataHora, fim)
+  ];
+
+  if (barberId) {
+    conditions.push(eq(appointmentsTable.barbeiroId, barberId));
+  }
+
+  // Busca os agendamentos, junta com os serviços e agrupa calculando o valor total de cada atendimento
+  
+  const results = await db
+    .select({
+      id: appointmentsTable.id,
+      dataHora: appointmentsTable.dataHora,
+      cliente: appointmentsTable.clienteNome,
+      valorTotal: sum(servicesTable.preco).as("valorTotal"),
+      // Se quiser agrupar os nomes dos serviços em uma string ou array, 
+      // dependendo do banco você pode usar agregações, ou tratar no service.
+    })
+    .from(appointmentsTable)
+    .leftJoin(
+      appointmentServicesTable,
+      eq(appointmentServicesTable.appointmentId, appointmentsTable.id)
+    )
+    .leftJoin(
+      servicesTable,
+      eq(servicesTable.id, appointmentServicesTable.serviceId)
+    )
+    .where(and(...conditions))
+    .groupBy(appointmentsTable.id, appointmentsTable.clienteNome, appointmentsTable.dataHora)
+    .orderBy(desc(appointmentsTable.dataHora));
+
+  return results;
+}
 }

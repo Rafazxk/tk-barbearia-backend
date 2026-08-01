@@ -59,4 +59,5 @@ export interface IAppointmentsRepository {
   listByClientPhone(clientPhone: string): Promise<IClientAppointment[]>;
   findAvailableSlots(barberId: number, date: string): Promise<string[]>;
   findBookedSlotsByDate(barberId: number, date: string): Promise<IBookedSlot[]>;
+  findRecebimentosByPeriod(startDate: string, endDate: string, barberId?: number): Promise<any[]>;
 }

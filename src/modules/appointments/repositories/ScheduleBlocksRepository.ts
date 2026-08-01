@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 // import { usersTable } from "./schema.js"; // Importe sua tabela de usuários se tiver
 
 export class ScheduleBlocksRepository {
+
   async findAll() {
     return await db
       .select({
@@ -21,7 +22,7 @@ export class ScheduleBlocksRepository {
       .orderBy(agendaBloqueiosTable.dataInicio);
   }
   
-async findBlocksByDate(barberId: number, date: string) {
+  async findBlocksByDate(barberId: number, date: string) {
   return await db
     .select()
     .from(agendaBloqueiosTable)
@@ -29,7 +30,7 @@ async findBlocksByDate(barberId: number, date: string) {
       sql`${agendaBloqueiosTable.dataInicio} = ${date} AND 
           (${agendaBloqueiosTable.barbeiroId} = ${barberId} OR ${agendaBloqueiosTable.barbeiroId} IS NULL)`
     );
-}
+  }
 
   async create(data: {
     tipo: string;
@@ -54,7 +55,38 @@ async findBlocksByDate(barberId: number, date: string) {
     return item;
   }
 
+  async update(
+  id: number,
+  data: {
+    tipo: string;
+    descricao: string;
+    dataInicio: string;
+    horaInicio?: string | null;
+    horaFim?: string | null;
+    barbeiroId?: number | null;
+  }
+) {
+  const updatePayload = {
+    tipo: data.tipo,
+    descricao: data.descricao,
+    dataInicio: data.dataInicio,
+    horaInicio: data.horaInicio ?? null,
+    horaFim: data.horaFim ?? null,
+    barbeiroId: data.barbeiroId ?? null,
+  };
+
+  const [item] = await db
+    .update(agendaBloqueiosTable)
+    .set(updatePayload)
+    .where(eq(agendaBloqueiosTable.id, id))
+    .returning();
+
+  return item;
+  }
+  
   async delete(id: number) {
     await db.delete(agendaBloqueiosTable).where(eq(agendaBloqueiosTable.id, id));
   }
+
+
 }

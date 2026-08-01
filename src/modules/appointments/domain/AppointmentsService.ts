@@ -26,6 +26,11 @@ export interface UpdateAppointmentDTO {
   duracao?: number;
   servicoIds?: number[];
 }
+
+
+
+
+
 export class AppointmentsService {
   private appointmentsRepository: IAppointmentsRepository;
   private businessHoursRepository: IBusinessHoursRepository;
@@ -377,6 +382,33 @@ export class AppointmentsService {
     }
 
     return "concluido";
+  }
+
+  async getRecebimentos({ startDate, endDate, barberId }: { startDate: string; endDate: string; barberId?: number }) {
+    const rawRecebimentos = await this.appointmentsRepository.findRecebimentosByPeriod(
+      startDate,
+      endDate,
+      barberId
+    );
+
+    let totalPeriodo = 0;
+
+    const items = rawRecebimentos.map((item) => {
+      const valor = Number(item.valorTotal || 0);
+      totalPeriodo += valor;
+
+      return {
+        data: DateTime.fromDate(item.dataHora),
+        cliente: item.cliente,
+        servico: "Serviço Realizado",
+        valor: valor,
+      };
+    });
+
+    return {
+      items,
+      totalPeriodo,
+    };
   }
 }
 
