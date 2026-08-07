@@ -23,20 +23,35 @@ export class PushNotificationService {
 }
 
   async sendToBarber(barberId: number, title: string, body: string) {
-    const subscriptions = await this.repository.findByBarberId(barberId);
-    const payload = JSON.stringify({ title, body });
+  console.log("========== PUSH ==========");
+  console.log("Barber:", barberId);
 
-    const sendPromises = subscriptions.map(async (sub) => {
-      try {
-        const data = JSON.parse(sub.subscriptionData) as PushSubscription;
-        await webpush.sendNotification(data, payload);
-      } catch (err: any) {
-        if (err.statusCode === 410) { // Assinatura expirada/inválida
-          await this.repository.delete(sub.id);
-        }
+  const subscriptions = await this.repository.findByBarberId(barberId);
+
+  console.log("Subscriptions encontradas:", subscriptions.length);
+
+  const payload = JSON.stringify({ title, body });
+
+  for (const sub of subscriptions) {
+    try {
+      const data = JSON.parse(sub.subscriptionData) as PushSubscription;
+
+      console.log("Enviando para endpoint:");
+      console.log(data.endpoint);
+
+      const response = await webpush.sendNotification(data, payload);
+
+      console.log("Resposta:", response.statusCode);
+
+    } catch (err: any) {
+      console.error("ERRO AO ENVIAR PUSH");
+      console.error(err);
+
+      if (err.statusCode === 410) {
+        console.log("Subscription expirada. Removendo...");
+        await this.repository.delete(sub.id);
       }
-    });
-
-    await Promise.all(sendPromises);
+    }
   }
+}
 }

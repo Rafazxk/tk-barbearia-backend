@@ -2,15 +2,25 @@ import { Server as SocketServer, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 
 export class SocketService {
-  // 🔹 Definindo os tipos explicitamente para evitar erros de compilação
   private static io: SocketServer | null = null;
   private static connectedBarbers = new Map<number, string>();
 
-  // 🔹 Tipando os parâmetros recebidos do seu server principal
   public static init(httpServer: HttpServer, allowedOrigins: string[]): void {
     this.io = new SocketServer(httpServer, {
       cors: {
-        origin: allowedOrigins, 
+        origin: (origin, callback) => {
+          // Permite conexões sem origem (ex: ferramentas de API ou requisições internas)
+          if (!origin) return callback(null, true);
+
+          const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".vercel.app");
+
+          if (isAllowed) {
+            callback(null, true);
+          } else {
+            console.error("CORS Socket.io Bloqueado para:", origin);
+            callback(new Error("Bloqueado pelo CORS do Socket.io"));
+          }
+        },
         methods: ["GET", "POST"],
         credentials: true
       }
@@ -19,7 +29,6 @@ export class SocketService {
     this.io.on("connection", (socket: Socket) => {
       console.log(`🔌 Novo cliente conectado: ${socket.id}`);
 
-      // 🔹 Garantindo que o barberId seja convertido e guardado como número
       socket.on("register-barber", (barberId: string | number) => {
         const idNumeric = Number(barberId);
         
@@ -41,7 +50,6 @@ export class SocketService {
     });
   }
 
-  // 🔹 Método de disparo limpo e tipado para os seus Services utilizarem
   public static sendNotificationToBarber(barberId: string | number, eventName: string, data: any): void {
     const idNumeric = Number(barberId);
     const socketId = this.connectedBarbers.get(idNumeric);
