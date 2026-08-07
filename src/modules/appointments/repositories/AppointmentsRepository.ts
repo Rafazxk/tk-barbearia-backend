@@ -138,6 +138,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async listByClientPhone(clientPhone: string): Promise<IClientAppointment[]> {
+   try{
     const appointments = await db.query.appointmentsTable.findMany({
 
       where: eq(appointmentsTable.clienteTelefone, clientPhone),
@@ -182,6 +183,10 @@ export class AppointmentsRepository implements IAppointmentsRepository {
         totalPreco,
       };
     });
+   } catch(error){
+    console.error(`Erro ao listar agendamentos para o telefone ${clientPhone}:`, error);
+    throw new Error("Não foi possível buscar os agendamentos no momento.");
+   }
   }
 
   async create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number, duracaoMinutos: number }) {
@@ -294,7 +299,7 @@ export class AppointmentsRepository implements IAppointmentsRepository {
   }
 
   async findBookedSlotsByDate(barberId: number, date: string): Promise<IBookedSlot[]> {
-  console.log({ barberId, date });
+
 
   const inicioDia = DateTime.fromDateOnly(date)
   .startOfDay()
@@ -317,14 +322,6 @@ const fimDia = DateTime.fromDateOnly(date)
         lte(appointmentsTable.dataHora, fimDia)
       )
     );
-
-  result.forEach(app => {
-  console.log({
-    valor: app.dataHora,
-    tipo: typeof app.dataHora,
-    constructor: app.dataHora?.constructor?.name,
-  });
-});
 
   return result.map(app => ({
     inicio: DateTime.fromDate(app.dataHora).formatTime(),

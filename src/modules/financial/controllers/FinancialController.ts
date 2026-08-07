@@ -5,7 +5,7 @@ import { FinancialService } from '../domain/FinancialService.js';
 const financialService = new FinancialService();
 
 export async function getRecebimentosHandler(req: Request, res: Response) {
-  console.log("Rota /appointments/recebimentos foi chamada! Query params:", req.query);
+
   try {
     const { startDate, endDate, barberId } = req.query;
 

@@ -21,9 +21,13 @@ export class CategoriesRepository {
       })
       .from(categoriesTable)
       .leftJoin(servicesTable, eq(servicesTable.categoriaId, categoriesTable.id))
-      .orderBy(categoriesTable.nome, servicesTable.nome);
+      .orderBy(
+        categoriesTable.ordem,
+        categoriesTable.nome,
+        servicesTable.ordem,
+        servicesTable.nome
+      );
       
-    // 🔄 Agrupa o retorno do banco no formato aninhado que o Frontend espera
     const categoriasMap = new Map<number, any>();
 
     for (const row of rows) {

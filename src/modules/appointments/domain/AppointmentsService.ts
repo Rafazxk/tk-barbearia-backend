@@ -130,7 +130,7 @@ export class AppointmentsService {
   duracao: number;
   servicoIds?: number[] | undefined;
 }) {
-  console.log("Recebido:", data.dataHora);
+
 
   if (!data.dataHora) {
     throw new Error("A data e hora do agendamento são obrigatórias.");
@@ -154,8 +154,9 @@ export class AppointmentsService {
   // Cria o objeto Date preservando exatamente o horário local
   const dataAgendamento = DateTime.fromLocalString(data.dataHora);
 
-  console.log("Date criada:", dataAgendamento);
-  console.log("ISO:", dataAgendamento.toISOString());  
+  if (dataAgendamento.toDate().getTime() <= Date.now()) {
+  throw new Error("Não é permitido agendar para uma data ou horário que já passou.");
+}
 
   const appointment = await this.appointmentsRepository.create({
     clienteNome: data.clienteNome,
@@ -191,7 +192,6 @@ export class AppointmentsService {
   }
 
   const dataFormatada = DateTime.fromDate(appointment.dataHora).formatTime();
-  console.log("data formatada", dataFormatada);
 
   try {
     await this.pushService.sendToBarber(
@@ -203,7 +203,6 @@ export class AppointmentsService {
     console.error("Falha ao enviar push:", err);
   }
 
-  console.log("result", result.dataHora);
 
   return result;
 }
@@ -261,6 +260,21 @@ export class AppointmentsService {
 
   const barber = await this.barbersRepository.findById(result.barbeiroId);
 
+  // Socket (tempo real)
+  SocketService.sendNotificationToBarber(
+    result.barbeiroId,
+    "appointment-updated",
+    {
+      id: result.id,
+      clienteNome: result.clienteNome,
+      dataHora: result.dataHora,
+      totalPreco: result.totalPreco,
+      totalDuracao: result.totalDuracao,
+      servicos: result.servicos.map((s: any) => s.nome),
+    }
+  );
+
+  // WhatsApp
   if (barber) {
     try {
       await this.whatsappService.notifyAppointmentUpdated(barber, result);
@@ -269,12 +283,51 @@ export class AppointmentsService {
     }
   }
 
+  // Push Notification
+  try {
+    const dataFormatada = DateTime
+      .fromLocalString(result.dataHora)
+      .formatTime();
+
+    await this.pushService.sendToBarber(
+      result.barbeiroId,
+      "Agendamento alterado ✏️",
+      `Cliente ${result.clienteNome} alterou o agendamento para ${dataFormatada}`
+    );
+  } catch (err) {
+    console.error("Falha ao enviar push:", err);
+  }
+
   return result;
 }
 
   async deleteAppointment(id: number) {
-    return await this.appointmentsRepository.delete(id);
+  const appointment = await this.getById(id);
+
+  if (!appointment) {
+    return null;
   }
+
+  await this.appointmentsRepository.delete(id);
+
+  SocketService.sendNotificationToBarber(
+    appointment.barbeiroId,
+    "appointment-deleted",
+    {
+      id: appointment.id,
+      clienteNome: appointment.clienteNome,
+      dataHora: appointment.dataHora,
+    }
+  );
+
+  await this.pushService.sendToBarber(
+    appointment.barbeiroId,
+    "Agendamento cancelado ❌",
+    `${appointment.clienteNome} cancelou o agendamento.`
+  );
+
+  return true;
+}
 
   async listAvailableSlots(barberId: number, date: string): Promise<string[]> {
     const dataParsed = DateTime.fromDateOnly(date);
@@ -352,10 +405,18 @@ export class AppointmentsService {
         return horarioAtual.isBetween(inicio, fim);
       });
 
-      const bloqueado = bloqueios.some(b =>
-        slot >= (b.horaInicio ?? "") &&
-        slot < (b.horaFim ?? "")
-      );
+      const bloqueado = bloqueios.some((b) => {
+  if (!b.horaInicio || !b.horaFim) return false;
+
+  const inicioBloqueio = new Time(b.horaInicio);
+  const horarioAtual = new Time(slot);
+
+  // Esconde também o horário exatamente no início do bloqueio
+  return (
+    horarioAtual.isBetween(inicioBloqueio, new Time(b.horaFim)) ||
+    horarioAtual.equals(inicioBloqueio)
+  );
+});
 
       return !ocupado && !bloqueado;
     });
