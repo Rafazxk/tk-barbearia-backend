@@ -10,6 +10,18 @@ export class PushSubscriptionRepository {
     });
   }
 
+async findByEndpoint(endpoint: string) {
+  const rows = await db.select()
+    .from(pushSubscriptions);
+
+  return rows.find(sub => {
+    const data = JSON.parse(sub.subscriptionData);
+    return data.endpoint === endpoint;
+  });
+}
+
+
+
   async findByBarberId(barberId: number) {
     return await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.barberId, barberId));
   }

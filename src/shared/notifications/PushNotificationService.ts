@@ -10,9 +10,17 @@ webpush.setVapidDetails(
 export class PushNotificationService {
   constructor(private repository: PushSubscriptionRepository) {}
 
-  async subscribe(barberId: number, subscription: any) {
-    return await this.repository.save(barberId, subscription);
-  }
+  async subscribe(barberId: number, subscription: PushSubscription) {
+
+    const existing =
+        await this.repository.findByEndpoint(subscription.endpoint);
+
+    if (existing) {
+        return;
+    }
+
+    await this.repository.save(barberId, subscription);
+}
 
   async sendToBarber(barberId: number, title: string, body: string) {
     const subscriptions = await this.repository.findByBarberId(barberId);
