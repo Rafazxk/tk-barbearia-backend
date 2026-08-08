@@ -2,6 +2,11 @@ import { type Request, type Response } from "express";
 import { AuthService, RegisterBodySchema } from "../domain/AuthService.js";
 import { z } from "zod";
 
+const UpdateProfileBodySchema = z.object({
+  nome: z.string().min(2, "O nome deve ter no mínimo 2 caracteres.")
+});
+
+
 const LoginBodySchema = z.object({
   email: z.string().email("E-mail inválido."),
   password: z.string().min(1, "O token do google é obrigatório.")
@@ -13,6 +18,7 @@ const GoogleLoginBodySchema = z.object({
 
 export class AuthController {
   
+
   // Tira do Controller a responsabilidade de saber criar instâncias de banco de dados
   constructor(private authService: AuthService) {}
 
@@ -99,4 +105,25 @@ export class AuthController {
       return res.status(400).json({ error: error.message || "Falha na autenticação com o Google." });
     }
   };
+
+  updateProfile = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const barberId = (req as any).user?.id;
+    if (!barberId) {
+      return res.status(401).json({ error: "Usuário não autenticado." });
+    }
+
+    const { nome } = UpdateProfileBodySchema.parse(req.body);
+    const perfilAtualizado = await this.authService.updateProfile(Number(barberId), nome);
+
+    return res.json(perfilAtualizado);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ erros: error.format() });
+    }
+    console.error("Erro ao atualizar perfil:", error);
+    return res.status(500).json({ error: error.message || "Erro interno ao atualizar perfil." });
+  }
+};
+
 }

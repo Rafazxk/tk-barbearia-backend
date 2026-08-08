@@ -145,4 +145,14 @@ async listAllBarbers() {
     };
   }
 
+  async updateProfile(id: number, nome: string) {
+  const barberAtualizado = await this.barbersRepository.updateNome(id, nome);
+
+  return {
+    id: barberAtualizado.id,
+    nome: barberAtualizado.nome,
+    email: barberAtualizado.email,
+    role: barberAtualizado.role
+  };
+}
 }

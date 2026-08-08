@@ -1,10 +1,48 @@
-import { db, agendaBloqueiosTable, barbersTable } from "../../../database/index.js";
-import { eq, sql } from "drizzle-orm";
-// import { usersTable } from "./schema.js"; // Importe sua tabela de usuários se tiver
+import { eq, or, isNull, and } from "drizzle-orm";
+import { db } from "../../../database/db.js"; 
+import { agendaBloqueiosTable, barbersTable } from "../../../database/schema/index.js";
 
 export class ScheduleBlocksRepository {
+  // Lista todos os bloqueios para o painel de administração
+  async findAll(barberId?: number | null) {
+  const query = db
+    .select({
+      id: agendaBloqueiosTable.id,
+      tipo: agendaBloqueiosTable.tipo,
+      descricao: agendaBloqueiosTable.descricao,
+      dataInicio: agendaBloqueiosTable.dataInicio,
+      horaInicio: agendaBloqueiosTable.horaInicio,
+      horaFim: agendaBloqueiosTable.horaFim,
+      barbeiroId: agendaBloqueiosTable.barbeiroId,
+      nomeBarbeiro: barbersTable.nome,
+    })
+    .from(agendaBloqueiosTable)
+    .leftJoin(barbersTable, eq(agendaBloqueiosTable.barbeiroId, barbersTable.id));
 
-  async findAll() {
+  // Se um barbeiro específico foi passado (e não é admin), filtra por:
+  // (Bloqueios globais IS NULL) OU (Bloqueios do próprio barbeiro)
+  if (barberId !== undefined && barberId !== null) {
+    const numericId = Number(barberId);
+    return await query.where(
+      or(
+        isNull(agendaBloqueiosTable.barbeiroId),
+        eq(agendaBloqueiosTable.barbeiroId, numericId)
+      )
+    );
+  }
+
+  return await query;
+}
+
+  // Busca bloqueios para validar horários disponíveis na agenda do cliente/painel
+  async findBlocksByDate(barbeiroId: number | null, dataStr: string) {
+    // Regra de Isolamento:
+    // 1. Se informou um barbeiro: Busca o que é GLOBAL (barbeiroId IS NULL) OU o que é DELE (barbeiroId = barberId).
+    // 2. Se NÃO informou barbeiro: Busca APENAS os bloqueios globais (barbeiroId IS NULL).
+    const condicaoBarbeiro = barbeiroId
+      ? or(isNull(agendaBloqueiosTable.barbeiroId), eq(agendaBloqueiosTable.barbeiroId, barbeiroId))
+      : isNull(agendaBloqueiosTable.barbeiroId);
+
     return await db
       .select({
         id: agendaBloqueiosTable.id,
@@ -14,79 +52,74 @@ export class ScheduleBlocksRepository {
         horaInicio: agendaBloqueiosTable.horaInicio,
         horaFim: agendaBloqueiosTable.horaFim,
         barbeiroId: agendaBloqueiosTable.barbeiroId,
-        
-        nomeBarbeiro: barbersTable.nome
+        nomeBarbeiro: barbersTable.nome,
       })
       .from(agendaBloqueiosTable)
       .leftJoin(barbersTable, eq(agendaBloqueiosTable.barbeiroId, barbersTable.id))
-      .orderBy(agendaBloqueiosTable.dataInicio);
-  }
-  
-  async findBlocksByDate(barberId: number, date: string) {
-  return await db
-    .select()
-    .from(agendaBloqueiosTable)
-    .where(
-      sql`${agendaBloqueiosTable.dataInicio} = ${date} AND 
-          (${agendaBloqueiosTable.barbeiroId} = ${barberId} OR ${agendaBloqueiosTable.barbeiroId} IS NULL)`
-    );
+      .where(
+        and(
+          eq(agendaBloqueiosTable.dataInicio, dataStr),
+          condicaoBarbeiro
+        )
+      );
   }
 
+  // Criar um novo bloqueio
   async create(data: {
-    tipo: string;
+    tipo: "horario" | "data";
     descricao: string;
     dataInicio: string;
     horaInicio?: string | null;
     horaFim?: string | null;
     barbeiroId?: number | null;
   }) {
-    // Garantimos que o objeto inserido tenha todas as chaves, 
-    // mas com valores estritamente tratados.
-    const insertPayload = {
-      tipo: data.tipo,
-      descricao: data.descricao,
-      dataInicio: data.dataInicio,
-      horaInicio: data.horaInicio ?? null,
-      horaFim: data.horaFim ?? null,
-      barbeiroId: data.barbeiroId ?? null,
-    };
+    const [inserted] = await db
+      .insert(agendaBloqueiosTable)
+      .values({
+        tipo: data.tipo,
+        descricao: data.descricao,
+        dataInicio: data.dataInicio,
+        horaInicio: data.horaInicio ?? null,
+        horaFim: data.horaFim ?? null,
+        barbeiroId: data.barbeiroId ?? null,
+      })
+      .returning();
 
-    const [item] = await db.insert(agendaBloqueiosTable).values(insertPayload).returning();
-    return item;
+    return inserted;
   }
 
+  // Atualizar um bloqueio existente
   async update(
-  id: number,
-  data: {
-    tipo: string;
-    descricao: string;
-    dataInicio: string;
-    horaInicio?: string | null;
-    horaFim?: string | null;
-    barbeiroId?: number | null;
-  }
-) {
-  const updatePayload = {
-    tipo: data.tipo,
-    descricao: data.descricao,
-    dataInicio: data.dataInicio,
-    horaInicio: data.horaInicio ?? null,
-    horaFim: data.horaFim ?? null,
-    barbeiroId: data.barbeiroId ?? null,
-  };
+    id: number,
+    data: {
+      tipo?: "horario" | "data";
+      descricao?: string;
+      dataInicio?: string;
+      horaInicio?: string | null;
+      horaFim?: string | null;
+      barbeiroId?: number | null;
+    }
+  ) {
+    const [updated] = await db
+      .update(agendaBloqueiosTable)
+      .set({
+        ...(data.tipo && { tipo: data.tipo }),
+        ...(data.descricao && { descricao: data.descricao }),
+        ...(data.dataInicio && { dataInicio: data.dataInicio }),
+        horaInicio: data.horaInicio ?? null,
+        horaFim: data.horaFim ?? null,
+        barbeiroId: data.barbeiroId ?? null,
+      })
+      .where(eq(agendaBloqueiosTable.id, id))
+      .returning();
 
-  const [item] = await db
-    .update(agendaBloqueiosTable)
-    .set(updatePayload)
-    .where(eq(agendaBloqueiosTable.id, id))
-    .returning();
-
-  return item;
+    return updated;
   }
-  
+
+  // Remover um bloqueio
   async delete(id: number) {
-    await db.delete(agendaBloqueiosTable).where(eq(agendaBloqueiosTable.id, id));
+    await db
+      .delete(agendaBloqueiosTable)
+      .where(eq(agendaBloqueiosTable.id, id));
   }
-
-
 }

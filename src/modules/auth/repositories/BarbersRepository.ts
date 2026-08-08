@@ -96,4 +96,21 @@ async updateFoto(id: number, fotoUrl: string): Promise<IBarberDTO> {
     role: barberAtualizado.role ?? "barber"
   };
 }
+
+async updateNome(id: number, nome: string): Promise<IBarberDTO> {
+  const [barberAtualizado] = await db
+    .update(barbersTable)
+    .set({ nome })
+    .where(eq(barbersTable.id, Number(id)))
+    .returning();
+
+  if (!barberAtualizado) {
+    throw new Error("Barbeiro não encontrado para atualizar o nome.");
+  }
+
+  return {
+    ...barberAtualizado,
+    role: barberAtualizado.role ?? "barber"
+  };
+}
 }

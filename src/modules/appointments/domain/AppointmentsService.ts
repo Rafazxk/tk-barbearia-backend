@@ -27,10 +27,6 @@ export interface UpdateAppointmentDTO {
   servicoIds?: number[];
 }
 
-
-
-
-
 export class AppointmentsService {
   private appointmentsRepository: IAppointmentsRepository;
   private businessHoursRepository: IBusinessHoursRepository;
@@ -106,10 +102,11 @@ export class AppointmentsService {
     };
   }
 
-  async list(filters?: IAppointmentsFilters) {
-    const base = await this.appointmentsRepository.findAll(filters);
-    return this.enrich(base);
-  }
+ async list(filters?: IAppointmentsFilters) {
+  // Garante que se houver um filtro de barbeiro, ele seja repassado corretamente
+  const base = await this.appointmentsRepository.findAll(filters);
+  return this.enrich(base);
+}
 
   async getById(id: number) {
     const appointment = await this.appointmentsRepository.findById(id);
@@ -154,10 +151,6 @@ export class AppointmentsService {
   // Cria o objeto Date preservando exatamente o horário local
   const dataAgendamento = DateTime.fromLocalString(data.dataHora);
 
-  if (dataAgendamento.toDate().getTime() <= Date.now()) {
-  throw new Error("Não é permitido agendar para uma data ou horário que já passou.");
-}
-
   const appointment = await this.appointmentsRepository.create({
     clienteNome: data.clienteNome,
     clienteTelefone: data.clienteTelefone,
@@ -176,7 +169,7 @@ export class AppointmentsService {
   const barber = await this.barbersRepository.findById(result.barbeiroId);
   if (!barber) throw new Error("Barbeiro não encontrado.");
 
-  SocketService.sendNotificationToBarber(result.barbeiroId, "new-appointment", {
+  SocketService.sendNotificationToBarber(result.barbeiroId, "Novo Agendamento", {
     id: result.id,
     clienteNome: result.clienteNome,
     dataHora: result.dataHora,
@@ -186,9 +179,16 @@ export class AppointmentsService {
   });
 
   try {
-    await this.whatsappService.notifyAppointmentCreated(barber, result);
+    await this.whatsappService.notifyClientAppointmentCreated({
+      clienteNome: result.clienteNome,
+      clienteTelefone: result.clienteTelefone,
+      dataHora: result.dataHora,
+      barbeiroNome: barber.nome,
+      servicos: result.servicos.map((s: any) => s.nome),
+      totalPreco: result.totalPreco
+    });
   } catch (error) {
-    console.error("Erro ao enviar WhatsApp:", error);
+    console.error("Erro ao enviar WhatsApp para o cliente:", error);
   }
 
   const dataFormatada = DateTime.fromDate(appointment.dataHora).formatTime();
@@ -263,7 +263,7 @@ export class AppointmentsService {
   // Socket (tempo real)
   SocketService.sendNotificationToBarber(
     result.barbeiroId,
-    "appointment-updated",
+    "Agendamento Atualizado",
     {
       id: result.id,
       clienteNome: result.clienteNome,
@@ -274,14 +274,6 @@ export class AppointmentsService {
     }
   );
 
-  // WhatsApp
-  if (barber) {
-    try {
-      await this.whatsappService.notifyAppointmentUpdated(barber, result);
-    } catch (error) {
-      console.error("Erro ao enviar WhatsApp:", error);
-    }
-  }
 
   // Push Notification
   try {
@@ -312,7 +304,7 @@ export class AppointmentsService {
 
   SocketService.sendNotificationToBarber(
     appointment.barbeiroId,
-    "appointment-deleted",
+    "Agendamento Excluído",
     {
       id: appointment.id,
       clienteNome: appointment.clienteNome,
@@ -330,99 +322,110 @@ export class AppointmentsService {
 }
 
   async listAvailableSlots(barberId: number, date: string): Promise<string[]> {
-    const dataParsed = DateTime.fromDateOnly(date);
-    const diaSemana = dataParsed.toDate().getDay();
+  const numericBarberId = Number(barberId);
 
-    const scheduleConfigs = await this.businessHoursRepository.getSchedule(barberId);
+  const dataParsed = DateTime.fromDateOnly(date);
+  const diaSemana = dataParsed.toDate().getDay();
 
-    const configDia = scheduleConfigs.find(
-      (config: IBusinessHoursInput) => config.diaSemana === diaSemana
-    );
+  const scheduleConfigs = await this.businessHoursRepository.getSchedule(numericBarberId);
 
-
-    if (!configDia || !configDia.trabalha) {
-      return [];
-    }
-
-
-    const abertura = new Time(configDia.horaAbertura);
-    const fechamento = new Time(configDia.horaFechamento);
-
-    const inicioAlmoco =
-      configDia.horaInicioAlmoco
-        ? new Time(configDia.horaInicioAlmoco)
-        : null;
-
-    const fimAlmoco =
-      configDia.horaFimAlmoco
-        ? new Time(configDia.horaFimAlmoco)
-        : null;
-
-    let minutosAbertura = abertura.toMinutes();
-    let minutosFechamento = fechamento.toMinutes();
-
-    const intervalo = configDia.intervaloMinutos;
-
-    if (minutosFechamento < minutosAbertura) {
-      minutosFechamento += 1440;
-    }
-
-    const slotsPadronizados: string[] = [];
-
-    while (minutosAbertura + intervalo <= minutosFechamento) {
-      const slot = Time.fromMinutes(minutosAbertura);
-
-      const estaNoAlmoco =
-        inicioAlmoco &&
-        fimAlmoco &&
-        slot.isBetween(inicioAlmoco, fimAlmoco);
-
-      if (!estaNoAlmoco) {
-        slotsPadronizados.push(slot.toString());
-      }
-
-      minutosAbertura += intervalo;
-    }
-
-    // 4. Ir na tabela de agendamentos reais buscar o que já está ocupado
-
-    const [horariosOcupados, bloqueios] = await Promise.all([
-      this.appointmentsRepository.findBookedSlotsByDate(barberId, date),
-      this.scheduleBlocksRepository.findBlocksByDate(barberId, date)
-    ]);
-
-    // 5. Filtrar a lista total tirando o que já está ocupado no banco
-    const bloqueioTotal = bloqueios.some(b => b.horaInicio === null && b.horaFim === null);
-    if (bloqueioTotal) return [];
-
-    const slotsLivres = slotsPadronizados.filter(slot => {
-      const horarioAtual = new Time(slot);
-
-      const ocupado = horariosOcupados.some(agendamento => {
-        const inicio = new Time(agendamento.inicio);
-        const fim = inicio.addMinutes(agendamento.duracao);
-
-        return horarioAtual.isBetween(inicio, fim);
-      });
-
-      const bloqueado = bloqueios.some((b) => {
-  if (!b.horaInicio || !b.horaFim) return false;
-
-  const inicioBloqueio = new Time(b.horaInicio);
-  const horarioAtual = new Time(slot);
-
-  // Esconde também o horário exatamente no início do bloqueio
-  return (
-    horarioAtual.isBetween(inicioBloqueio, new Time(b.horaFim)) ||
-    horarioAtual.equals(inicioBloqueio)
+  const configDia = scheduleConfigs.find(
+    (config: IBusinessHoursInput) => config.diaSemana === diaSemana
   );
-});
 
-      return !ocupado && !bloqueado;
+  if (!configDia || !configDia.trabalha) {
+    return [];
+  }
+
+  const abertura = new Time(configDia.horaAbertura);
+  const fechamento = new Time(configDia.horaFechamento);
+
+  const inicioAlmoco = configDia.horaInicioAlmoco
+    ? new Time(configDia.horaInicioAlmoco)
+    : null;
+
+  const fimAlmoco = configDia.horaFimAlmoco
+    ? new Time(configDia.horaFimAlmoco)
+    : null;
+
+  let minutosAbertura = abertura.toMinutes();
+  let minutosFechamento = fechamento.toMinutes();
+
+  const intervalo = configDia.intervaloMinutos;
+
+  if (minutosFechamento < minutosAbertura) {
+    minutosFechamento += 1440;
+  }
+
+  const slotsPadronizados: string[] = [];
+
+  while (minutosAbertura + intervalo <= minutosFechamento) {
+    const slot = Time.fromMinutes(minutosAbertura);
+
+    const estaNoAlmoco =
+      inicioAlmoco &&
+      fimAlmoco &&
+      slot.isBetween(inicioAlmoco, fimAlmoco);
+
+    if (!estaNoAlmoco) {
+      slotsPadronizados.push(slot.toString());
+    }
+
+    minutosAbertura += intervalo;
+  }
+
+  // 4. Buscar agendamentos e bloqueios reais no banco
+  const [horariosOcupados, rawBloqueios] = await Promise.all([
+    this.appointmentsRepository.findBookedSlotsByDate(numericBarberId, date),
+    this.scheduleBlocksRepository.findBlocksByDate(numericBarberId, date)
+  ]);
+
+console.log(`🚨 [DEBUG DATA ${date}] Barbeiro ${numericBarberId} - Bloqueios vindos do banco:`, rawBloqueios);
+console.log(`🚨 [DEBUG DATA ${date}] Barbeiro ${numericBarberId} - Slots de expediente gerados:`, slotsPadronizados.length);
+
+  // BLINDAGEM EM MEMÓRIA: Filtra apenas bloqueios GLOBAIS (null) ou DO BARBEIRO ATUAL
+  const bloqueios = rawBloqueios.filter((b) => {
+    if (b.barbeiroId === null || b.barbeiroId === undefined) return true; // Bloqueio global
+    return Number(b.barbeiroId) === numericBarberId;                      // Bloqueio do barbeiro
+  });
+
+  // 5. Verificar bloqueio de dia inteiro (tipo "data" OU sem horaInicio/fim)
+  const bloqueioTotal = bloqueios.some(
+    (b) => b.tipo === "data" || (!b.horaInicio && !b.horaFim)
+  );
+
+  if (bloqueioTotal) return [];
+
+  // 6. Filtrar slots livres ignorando os horários ocupados/bloqueados
+  const slotsLivres = slotsPadronizados.filter((slot) => {
+    const horarioAtual = new Time(slot);
+
+    // Verifica se já existe agendamento neste horário
+    const ocupado = horariosOcupados.some((agendamento) => {
+      const inicio = new Time(agendamento.inicio);
+      const fim = inicio.addMinutes(agendamento.duracao);
+
+      return horarioAtual.isBetween(inicio, fim) || horarioAtual.equals(inicio);
     });
 
-    return slotsLivres;
-  }
+    // Verifica se há bloqueio de horário parcial
+    const bloqueado = bloqueios.some((b) => {
+      if (!b.horaInicio || !b.horaFim) return false;
+
+      const inicioBloqueio = new Time(b.horaInicio);
+      const fimBloqueio = new Time(b.horaFim);
+
+      return (
+        horarioAtual.isBetween(inicioBloqueio, fimBloqueio) ||
+        horarioAtual.equals(inicioBloqueio)
+      );
+    });
+
+    return !ocupado && !bloqueado;
+  });
+
+  return slotsLivres;
+}
 
   private getStatusVisual(appointment: {
     dataHora: Date;

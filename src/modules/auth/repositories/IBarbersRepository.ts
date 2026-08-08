@@ -16,4 +16,5 @@ export interface IBarbersRepository {
   listBarbers(): Promise<IBarberDTO[]>;
   findById(id: number): Promise<IBarberDTO | null>;
   updateFoto(id: number, fotoUrl: string): Promise<IBarberDTO>;
+  updateNome(id: number, nome: string): Promise<IBarberDTO>;
 }
