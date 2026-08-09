@@ -12,7 +12,7 @@ export const produtosTable = pgTable("produtos", {
   descricao: varchar("descricao", { length: 500 }),
   preco: decimal("preco", { precision: 10, scale: 2 }).notNull(),
   estoque: integer("estoque").default(0),
-  imagemUrl: varchar("imagem_url", { length: 1000 }), // 📸 Já preparado para amanhã!
+  imagemUrl: varchar("imagem_url", { length: 1000 }), 
   categoriaId: integer("categoria_id")
     .references(() => produtoCategoriasTable.id, { onDelete: "cascade" })
     .notNull(),

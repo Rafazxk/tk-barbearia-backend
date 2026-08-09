@@ -49,12 +49,12 @@ export class ProductsRepository {
     await db.delete(produtoCategoriasTable).where(eq(produtoCategoriasTable.id, id));
   }
 
-  async createProduct(data: { nome: string; descricao?: string; preco: string; estoque: number; categoriaId: number }) {
+  async createProduct(data: { nome: string; descricao?: string; preco: string; estoque: number; categoriaId: number; imagemUrl?: string | null }) {
     const [item] = await db.insert(produtosTable).values(data).returning();
     return item;
   }
 
-  async updateProduct(id: number, data: { nome: string; descricao?: string; preco: string; estoque: number; categoriaId: number }) {
+  async updateProduct(id: number, data: { nome?: string; descricao?: string; preco?: string; estoque?: number; categoriaId?: number; imagemUrl?: string | null }) {
     await db.update(produtosTable).set(data).where(eq(produtosTable.id, id));
   }
 

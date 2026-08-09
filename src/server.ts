@@ -70,7 +70,7 @@ app.use("/api/schedule-blocks", scheduleBlocksRoutes);
 app.use("/api/business-hours", businessHoursRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use('/api/financial', financialRouter);
-
+app.use("/uploads", express.static(path.resolve("uploads")));
 app.get("/api/health", (req, res) => {
   res.json({ status: "online", message: "Servidor voando baixo!" });
 });
