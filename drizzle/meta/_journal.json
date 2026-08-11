@@ -78,6 +78,13 @@
       "when": 1784993125478,
       "tag": "0010_gray_the_professor",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786369321159,
+      "tag": "0011_closed_rhodey",
+      "breakpoints": true
     }
   ]
 }

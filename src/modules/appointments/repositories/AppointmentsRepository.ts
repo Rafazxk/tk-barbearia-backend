@@ -3,6 +3,7 @@ import { eq, and, or, isNull, gte, lte, lt, sql, asc, desc, count, max, sum } fr
 import { type IAppointmentsRepository, type IAppointmentsFilters, type IBookedSlot } from "./IAppointmentsRepository.js";
 import { type IClientAppointment } from "./IClienteRepository.js";
 import { DateTime } from "../../../shared/time/DateTime.js";
+import { whatsappSettingsTable } from "../../../database/schema/whatsapp.schema.js";
 
 export class AppointmentsRepository implements IAppointmentsRepository {
 
@@ -366,6 +367,41 @@ const fimDia = DateTime.fromDateOnly(date)
     .groupBy(appointmentsTable.id, appointmentsTable.clienteNome, appointmentsTable.dataHora)
     .orderBy(desc(appointmentsTable.dataHora));
 
+
+
+    
   return results;
 }
+async findAppointmentsNeedingReminder() {
+    const agora = new Date();
+    
+    // Janela de 30 a 35 minutos à frente
+    const daqui30Minutos = new Date(agora.getTime() + 30 * 60000);
+    const daqui35Minutos = new Date(agora.getTime() + 35 * 60000);
+
+    // Importe a whatsappSettingsTable no topo do arquivo se já não estiver importada!
+    return await db
+      .select({
+        id: appointmentsTable.id,
+        clienteNome: appointmentsTable.clienteNome,
+        clienteTelefone: appointmentsTable.clienteTelefone,
+        dataHora: appointmentsTable.dataHora,
+        barbeiroId: appointmentsTable.barbeiroId,
+        sendReminderNotifications: whatsappSettingsTable.sendReminderNotifications,
+        reminderMessageTemplate: whatsappSettingsTable.reminderMessageTemplate,
+      })
+      .from(appointmentsTable)
+      .innerJoin(
+        whatsappSettingsTable, 
+        eq(appointmentsTable.barbeiroId, whatsappSettingsTable.barberId)
+      )
+      .where(
+        and(
+          gte(appointmentsTable.dataHora, daqui30Minutos),
+          lte(appointmentsTable.dataHora, daqui35Minutos),
+          eq(appointmentsTable.lembreteEnviado, false),
+          eq(whatsappSettingsTable.sendReminderNotifications, true)
+        )
+      );
+  }
 }

@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp, integer, decimal } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, integer, decimal, boolean } from "drizzle-orm/pg-core";
 import { barbersTable } from "./barber.schema.js";
 
 export const appointmentsTable = pgTable("agendamentos", {
@@ -13,6 +13,10 @@ export const appointmentsTable = pgTable("agendamentos", {
   duracaoMinutos: integer("duracao_minutos")
     .notNull()
     .default(30),
+  
+  // 🔹 Novo campo para controlar se o lembrete de WhatsApp já foi enviado
+  lembreteEnviado: boolean("lembrete_enviado").default(false).notNull(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

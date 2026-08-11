@@ -1,0 +1,3 @@
+ALTER TABLE "agendamentos" ADD COLUMN "lembrete_enviado" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "whatsapp_settings" ADD COLUMN "send_reminder_notifications" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "whatsapp_settings" ADD COLUMN "reminder_message_template" text DEFAULT 'Olá {cliente}, passando para lembrar que seu agendamento para {servico} é hoje às {hora}. Te esperamos!' NOT NULL;

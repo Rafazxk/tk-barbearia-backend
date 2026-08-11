@@ -19,6 +19,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import financialRouter from "./modules/financial/routes/financialRoutes.js";
 
+import { iniciarJobLembreteWhatsapp } from "./jobs/whatsappReminder.job.js";
+
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,6 +77,9 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "online", message: "Servidor voando baixo!" });
 });
 
+iniciarJobLembreteWhatsapp();
+
 httpServer.listen(PORT, () => {
   console.log(`🚀 Servidor e WebSockets voando baixo na porta: ${PORT}`);
 });
+

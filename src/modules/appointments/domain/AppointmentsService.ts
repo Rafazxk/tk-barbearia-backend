@@ -380,9 +380,6 @@ export class AppointmentsService {
     this.scheduleBlocksRepository.findBlocksByDate(numericBarberId, date)
   ]);
 
-console.log(`🚨 [DEBUG DATA ${date}] Barbeiro ${numericBarberId} - Bloqueios vindos do banco:`, rawBloqueios);
-console.log(`🚨 [DEBUG DATA ${date}] Barbeiro ${numericBarberId} - Slots de expediente gerados:`, slotsPadronizados.length);
-
   // BLINDAGEM EM MEMÓRIA: Filtra apenas bloqueios GLOBAIS (null) ou DO BARBEIRO ATUAL
   const bloqueios = rawBloqueios.filter((b) => {
     if (b.barbeiroId === null || b.barbeiroId === undefined) return true; // Bloqueio global

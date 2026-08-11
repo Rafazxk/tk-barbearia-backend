@@ -14,7 +14,13 @@ export class WhatsappRepository implements IWhatsappRepository {
 
   async upsertSettings(
     barberId: number, 
-    data: { receiveAdminNotifications: boolean; sendClientNotifications: boolean; welcomeMessageTemplate: string }
+    data: { 
+      receiveAdminNotifications: boolean; 
+      sendClientNotifications: boolean; 
+      welcomeMessageTemplate: string;
+      sendReminderNotifications: boolean;
+      reminderMessageTemplate: string;
+    }
   ) {
     return await db
       .insert(whatsappSettingsTable)
@@ -23,11 +29,13 @@ export class WhatsappRepository implements IWhatsappRepository {
         ...data,
       })
       .onConflictDoUpdate({
-        target: whatsappSettingsTable.barberId, // Garante o conflito baseado no ID único do barbeiro
+        target: whatsappSettingsTable.barberId,
         set: {
           receiveAdminNotifications: data.receiveAdminNotifications,
           sendClientNotifications: data.sendClientNotifications,
           welcomeMessageTemplate: data.welcomeMessageTemplate,
+          sendReminderNotifications: data.sendReminderNotifications,
+          reminderMessageTemplate: data.reminderMessageTemplate,
           updatedAt: new Date()
         },
       })
