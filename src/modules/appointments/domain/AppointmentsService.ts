@@ -359,7 +359,7 @@ export class AppointmentsService {
 
   const slotsPadronizados: string[] = [];
 
-  while (minutosAbertura + intervalo <= minutosFechamento) {
+  while (minutosAbertura < minutosFechamento) {
     const slot = Time.fromMinutes(minutosAbertura);
 
     const estaNoAlmoco =
@@ -368,7 +368,10 @@ export class AppointmentsService {
       slot.isBetween(inicioAlmoco, fimAlmoco);
 
     if (!estaNoAlmoco) {
-      slotsPadronizados.push(slot.toString());
+  
+      if (minutosAbertura + intervalo <= minutosFechamento) {
+        slotsPadronizados.push(slot.toString());
+      }
     }
 
     minutosAbertura += intervalo;

@@ -42,7 +42,7 @@ import { type IAppointmentsFilters } from "../repositories/IAppointmentsReposito
       quantidade: z.coerce.number()
     })
   ).optional().default([]),
-  duracao: z.coerce.number().min(15)
+  duracao: z.coerce.number().min(10)
   });
 
   export class AppointmentController {

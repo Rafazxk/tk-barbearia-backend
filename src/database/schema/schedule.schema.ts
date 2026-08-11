@@ -2,12 +2,12 @@ import { pgTable, serial, varchar, date, time, integer, boolean } from "drizzle-
 
 export const agendaBloqueiosTable = pgTable("agenda_bloqueios", {
   id: serial("id").primaryKey(),
-  tipo: varchar("tipo", { length: 20 }).notNull(), // 'horario' ou 'data'
+  tipo: varchar("tipo", { length: 20 }).notNull(), 
   descricao: varchar("descricao", { length: 255 }).notNull(),
   dataInicio: date("data_inicio").notNull(),
-  horaInicio: time("hora_inicio"), // Preenchido apenas se tipo for 'horario'
-  horaFim: time("hora_fim"),       // Preenchido apenas se tipo for 'horario'
-  barbeiroId: integer("barbeiro_id"), // Nulo significa "Todos os Barbeiros"
+  horaInicio: time("hora_inicio"),
+  horaFim: time("hora_fim"),     
+  barbeiroId: integer("barbeiro_id"), 
 });
 
 export const expedienteConfigTable = pgTable("expediente_configs", {

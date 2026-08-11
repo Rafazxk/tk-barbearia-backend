@@ -47,4 +47,4 @@ export const servicesTable = pgTable("servicos", {
   ordem: integer("ordem").default(0),
 });
 
-// 4. Tabela de Agendamentos (Onde o cliente marca o horário)
+
