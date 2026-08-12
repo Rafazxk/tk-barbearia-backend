@@ -321,13 +321,18 @@ export class AppointmentsService {
   return true;
 }
 
-  async listAvailableSlots(barberId: number, date: string): Promise<string[]> {
+ async  listAvailableSlots(
+  barberId: number,
+  date: string,
+  duracaoMinutos: number
+): Promise<string[]> {
   const numericBarberId = Number(barberId);
 
   const dataParsed = DateTime.fromDateOnly(date);
   const diaSemana = dataParsed.toDate().getDay();
 
-  const scheduleConfigs = await this.businessHoursRepository.getSchedule(numericBarberId);
+  const scheduleConfigs =
+    await this.businessHoursRepository.getSchedule(numericBarberId);
 
   const configDia = scheduleConfigs.find(
     (config: IBusinessHoursInput) => config.diaSemana === diaSemana
@@ -353,79 +358,112 @@ export class AppointmentsService {
 
   const intervalo = configDia.intervaloMinutos;
 
+  // Caso o expediente atravesse a meia-noite
   if (minutosFechamento < minutosAbertura) {
     minutosFechamento += 1440;
   }
 
+  // O último horário possível depende da duração do serviço.
+  //
+  // Exemplo:
+  // Fechamento 19:00 (1140)
+  // Serviço 30 min
+  // Último início = 1140 - 30 = 1110 = 18:30
+  const ultimoInicioPossivel =
+    minutosFechamento - duracaoMinutos;
+
   const slotsPadronizados: string[] = [];
 
-  while (minutosAbertura < minutosFechamento) {
-    const slot = Time.fromMinutes(minutosAbertura);
+  while (minutosAbertura <= ultimoInicioPossivel) {
+     const slot = Time.fromMinutes(minutosAbertura);
+      const inicioServico = minutosAbertura;
+       const fimServico = inicioServico + duracaoMinutos; 
+       // Verifica se o serviço inteiro invade o intervalo/almoço.
+       //  // // Exemplo: // Almoço: 12:00 → 14:00 // Serviço: 30 min // // 11:30 → 12:00 ✅ // 11:40 → 12:10 ❌ // 11:50 → 12:20 ❌ // 14:00 → 14:30 ✅
+         const atravessaAlmoco = inicioAlmoco && fimAlmoco && inicioServico < fimAlmoco.toMinutes() && fimServico > inicioAlmoco.toMinutes();
+          if (!atravessaAlmoco) { slotsPadronizados.push(slot.toString()); } minutosAbertura += intervalo;
+         }
 
-    const estaNoAlmoco =
-      inicioAlmoco &&
-      fimAlmoco &&
-      slot.isBetween(inicioAlmoco, fimAlmoco);
-
-    if (!estaNoAlmoco) {
-  
-      if (minutosAbertura + intervalo <= minutosFechamento) {
-        slotsPadronizados.push(slot.toString());
-      }
-    }
-
-    minutosAbertura += intervalo;
-  }
-
-  // 4. Buscar agendamentos e bloqueios reais no banco
+  // Buscar agendamentos e bloqueios reais no banco
   const [horariosOcupados, rawBloqueios] = await Promise.all([
-    this.appointmentsRepository.findBookedSlotsByDate(numericBarberId, date),
-    this.scheduleBlocksRepository.findBlocksByDate(numericBarberId, date)
+    this.appointmentsRepository.findBookedSlotsByDate(
+      numericBarberId,
+      date
+    ),
+    this.scheduleBlocksRepository.findBlocksByDate(
+      numericBarberId,
+      date
+    )
   ]);
 
-  // BLINDAGEM EM MEMÓRIA: Filtra apenas bloqueios GLOBAIS (null) ou DO BARBEIRO ATUAL
+  // Filtra apenas bloqueios globais ou do barbeiro atual
   const bloqueios = rawBloqueios.filter((b) => {
-    if (b.barbeiroId === null || b.barbeiroId === undefined) return true; // Bloqueio global
-    return Number(b.barbeiroId) === numericBarberId;                      // Bloqueio do barbeiro
+    if (b.barbeiroId === null || b.barbeiroId === undefined) {
+      return true;
+    }
+
+    return Number(b.barbeiroId) === numericBarberId;
   });
 
-  // 5. Verificar bloqueio de dia inteiro (tipo "data" OU sem horaInicio/fim)
+  // Verifica bloqueio de dia inteiro
   const bloqueioTotal = bloqueios.some(
-    (b) => b.tipo === "data" || (!b.horaInicio && !b.horaFim)
+    (b) =>
+      b.tipo === "data" ||
+      (!b.horaInicio && !b.horaFim)
   );
 
-  if (bloqueioTotal) return [];
+  if (bloqueioTotal) {
+    return [];
+  }
 
-  // 6. Filtrar slots livres ignorando os horários ocupados/bloqueados
+  // Filtra horários ocupados e bloqueados
   const slotsLivres = slotsPadronizados.filter((slot) => {
     const horarioAtual = new Time(slot);
 
-    // Verifica se já existe agendamento neste horário
+    // Verifica agendamentos existentes
     const ocupado = horariosOcupados.some((agendamento) => {
       const inicio = new Time(agendamento.inicio);
       const fim = inicio.addMinutes(agendamento.duracao);
 
-      return horarioAtual.isBetween(inicio, fim) || horarioAtual.equals(inicio);
-    });
-
-    // Verifica se há bloqueio de horário parcial
-    const bloqueado = bloqueios.some((b) => {
-      if (!b.horaInicio || !b.horaFim) return false;
-
-      const inicioBloqueio = new Time(b.horaInicio);
-      const fimBloqueio = new Time(b.horaFim);
-
       return (
-        horarioAtual.isBetween(inicioBloqueio, fimBloqueio) ||
-        horarioAtual.equals(inicioBloqueio)
+        horarioAtual.isBetween(inicio, fim) ||
+        horarioAtual.equals(inicio)
       );
     });
+
+    // Verifica bloqueios parciais
+    const bloqueado = bloqueios.some((b) => {
+  if (!b.horaInicio || !b.horaFim) {
+    return false;
+  }
+
+  const inicioBloqueio = new Time(b.horaInicio);
+  const fimBloqueio = new Time(b.horaFim);
+
+  const inicioBloqueioMinutos =
+    inicioBloqueio.toMinutes();
+
+  const fimBloqueioMinutos =
+    fimBloqueio.toMinutes();
+
+  const inicioServico =
+    horarioAtual.toMinutes();
+
+  const fimServico =
+    inicioServico + duracaoMinutos;
+
+  return (
+    inicioServico < fimBloqueioMinutos &&
+    fimServico > inicioBloqueioMinutos
+  );
+});
 
     return !ocupado && !bloqueado;
   });
 
   return slotsLivres;
 }
+
 
   private getStatusVisual(appointment: {
     dataHora: Date;

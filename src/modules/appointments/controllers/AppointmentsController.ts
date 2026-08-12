@@ -257,29 +257,65 @@ import { type IAppointmentsFilters } from "../repositories/IAppointmentsReposito
     }
   };
 
-  async listAvailable(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    try {
-      const { date, barberId } = req.query;
-      
-      if (!date || typeof date !== "string") {
-        return res.status(400).json({ error: "Data inválida ou não informada." });
-      }
-      
-      const parsedBarberId = barberId ? Number(barberId) : undefined;
+  async listAvailable(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response> {
+  try {
+    const { date, barberId, duracaoMinutos } = req.query;
 
-      if (parsedBarberId === undefined || isNaN(parsedBarberId)) {
-        return res.status(400).json({ error: "barberId inválido ou não informado." });
-      }
-
-      // 🌟 PASSE EXATAMENTE NESSA ORDEM PARA CASAR COM O SEU SERVICE E SANAR O TYPESCRIPT:
-      const availableSlots = await this.appointmentsService.listAvailableSlots(parsedBarberId, date);
-      
-      return res.json(availableSlots);
-    } catch (err) {
-      console.error("❌ ERRO AO LISTAR HORÁRIOS DISPONÍVEIS:", err);
-      return res.status(500).json({ error: "Erro interno ao listar horários disponíveis." });
+    if (!date || typeof date !== "string") {
+      return res.status(400).json({
+        error: "Data inválida ou não informada."
+      });
     }
-  };
 
+    const parsedBarberId = barberId
+      ? Number(barberId)
+      : undefined;
+
+    if (
+      parsedBarberId === undefined ||
+      isNaN(parsedBarberId)
+    ) {
+      return res.status(400).json({
+        error: "barberId inválido ou não informado."
+      });
+    }
+
+    const parsedDuracaoMinutos = duracaoMinutos
+      ? Number(duracaoMinutos)
+      : undefined;
+
+    if (
+      parsedDuracaoMinutos === undefined ||
+      isNaN(parsedDuracaoMinutos) ||
+      parsedDuracaoMinutos <= 0
+    ) {
+      return res.status(400).json({
+        error: "duracaoMinutos inválida ou não informada."
+      });
+    }
+
+    const availableSlots =
+      await this.appointmentsService.listAvailableSlots(
+        parsedBarberId,
+        date,
+        parsedDuracaoMinutos
+      );
+
+    return res.json(availableSlots);
+  } catch (err) {
+    console.error(
+      "❌ ERRO AO LISTAR HORÁRIOS DISPONÍVEIS:",
+      err
+    );
+
+    return res.status(500).json({
+      error: "Erro interno ao listar horários disponíveis."
+    });
+  }
+}
 
 }
