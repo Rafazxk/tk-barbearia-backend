@@ -1,4 +1,4 @@
-import { type IAppointmentsRepository, type IAppointmentsFilters, type IAppointmentEnriched } from "../repositories/IAppointmentsRepository.js";
+import { type IAppointmentsRepository, type IAppointmentsFilters, type IAppointmentEnriched,  type IBookedSlot} from "../repositories/IAppointmentsRepository.js";
 import { type IBusinessHoursRepository, type IBusinessHoursInput } from "../repositories/IBusinessHoursRepository.js";
 import { SocketService } from "../../../shared/SocketService.js";
 import { ScheduleBlocksRepository } from "../repositories/ScheduleBlocksRepository.js";
@@ -416,21 +416,28 @@ export class AppointmentsService {
     return [];
   }
 
-  // Filtra horários ocupados e bloqueados
+ 
   const slotsLivres = slotsPadronizados.filter((slot) => {
     const horarioAtual = new Time(slot);
 
     // Verifica agendamentos existentes
-    const ocupado = horariosOcupados.some((agendamento) => {
-      const inicio = new Time(agendamento.inicio);
-      const fim = inicio.addMinutes(agendamento.duracao);
+    const inicioServico = horarioAtual.toMinutes();
+    const fimServico = inicioServico + duracaoMinutos;
 
-      return (
-        horarioAtual.isBetween(inicio, fim) ||
-        horarioAtual.equals(inicio)
-      );
-    });
+const ocupado = horariosOcupados.some((agendamento: IBookedSlot) => {
+  const inicioAgendamento = new Time(agendamento.inicio);
 
+  const inicioAgendamentoMinutos =
+    inicioAgendamento.toMinutes();
+
+  const fimAgendamentoMinutos =
+    inicioAgendamentoMinutos + agendamento.duracao;
+
+  return (
+    inicioServico < fimAgendamentoMinutos &&
+    fimServico > inicioAgendamentoMinutos
+  );
+});
     // Verifica bloqueios parciais
     const bloqueado = bloqueios.some((b) => {
   if (!b.horaInicio || !b.horaFim) {
