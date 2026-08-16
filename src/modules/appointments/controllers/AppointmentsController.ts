@@ -21,7 +21,7 @@ import { type IAppointmentsFilters } from "../repositories/IAppointmentsReposito
   dataHora: z.string(),
   barbeiroId: z.number(),
   servicoIds: z.array(z.number()).optional(),
-  duracao: z.coerce.number().min(15)
+  duracao: z.coerce.number().min(5)
   });
 
   const CreateClientBookingBody = z.object({
@@ -263,7 +263,7 @@ import { type IAppointmentsFilters } from "../repositories/IAppointmentsReposito
   next: NextFunction
 ): Promise<Response> {
   try {
-    const { date, barberId, duracaoMinutos } = req.query;
+    const { date, barberId, duracaoMinutos, tipo } = req.query;
 
     if (!date || typeof date !== "string") {
       return res.status(400).json({
@@ -302,7 +302,8 @@ import { type IAppointmentsFilters } from "../repositories/IAppointmentsReposito
       await this.appointmentsService.listAvailableSlots(
         parsedBarberId,
         date,
-        parsedDuracaoMinutos
+        parsedDuracaoMinutos,
+        tipo === "cliente" ? "cliente" : "barbeiro"
       );
 
     return res.json(availableSlots);

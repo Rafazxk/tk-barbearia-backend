@@ -1,4 +1,4 @@
-import { type IAppointmentsRepository, type IAppointmentsFilters, type IAppointmentEnriched,  type IBookedSlot} from "../repositories/IAppointmentsRepository.js";
+import { type IAppointmentsRepository, type IAppointmentsFilters,  type IBookedSlot } from "../repositories/IAppointmentsRepository.js";
 import { type IBusinessHoursRepository, type IBusinessHoursInput } from "../repositories/IBusinessHoursRepository.js";
 import { SocketService } from "../../../shared/SocketService.js";
 import { ScheduleBlocksRepository } from "../repositories/ScheduleBlocksRepository.js";
@@ -35,7 +35,7 @@ export class AppointmentsService {
   private barbersRepository: IBarbersRepository;
   private pushService: PushNotificationService;
 
-  constructor(
+constructor(
     appointmentsRepository: IAppointmentsRepository,
     businessHoursRepository: IBusinessHoursRepository,
     scheduleBlocksRepository: ScheduleBlocksRepository,
@@ -49,17 +49,16 @@ export class AppointmentsService {
     this.whatsappService = whatsappService;
     this.barbersRepository = barbersRepository;
     this.pushService = pushService;
-  }
+}
 
-  async getFrequentClients(barberId?: number) {
+async getFrequentClients(barberId?: number) {
     
     const frequentClients = await this.appointmentsRepository.findFrequentClients(barberId);
 
     return frequentClients;
-  }
+}
 
-  
-  private async enrich(baseAppointments: AppointmentBase[]) {
+private async enrich(baseAppointments: AppointmentBase[]) {
   return await Promise.all(
     baseAppointments.map(async (app) => {
       const services = await this.appointmentsRepository.findServicesByAppointmentId(app.id);
@@ -90,7 +89,7 @@ export class AppointmentsService {
   );
 }
 
-  async getDashboardSummary(barberId: number) {
+async getDashboardSummary(barberId: number) {
     const stats = await this.appointmentsRepository.getStatsToday(barberId);
 
     return {
@@ -100,26 +99,26 @@ export class AppointmentsService {
       appointmentsThisWeek: stats.appointmentsThisWeek,
       topService: "Corte degradê"
     };
-  }
+}
 
- async list(filters?: IAppointmentsFilters) {
+async list(filters?: IAppointmentsFilters) {
   // Garante que se houver um filtro de barbeiro, ele seja repassado corretamente
   const base = await this.appointmentsRepository.findAll(filters);
   return this.enrich(base);
 }
 
-  async getById(id: number) {
+async getById(id: number) {
     const appointment = await this.appointmentsRepository.findById(id);
     if (!appointment) return null;
     const [enriched] = await this.enrich([appointment]);
     return enriched;
-  }
+}
 
-  async listByClientPhone(phone: string) {
+async listByClientPhone(phone: string) {
     return await this.appointmentsRepository.listByClientPhone(phone);
-  }
+}
 
- async createAppointment(data: {
+async createAppointment(data: {
   clienteNome: string;
   clienteTelefone: string;
   dataHora: string;
@@ -207,7 +206,7 @@ export class AppointmentsService {
   return result;
 }
 
-  async updateAppointment(
+async updateAppointment(
   id: number,
   body: UpdateAppointmentDTO
 ) {
@@ -293,7 +292,7 @@ export class AppointmentsService {
   return result;
 }
 
-  async deleteAppointment(id: number) {
+async deleteAppointment(id: number) {
   const appointment = await this.getById(id);
 
   if (!appointment) {
@@ -321,10 +320,11 @@ export class AppointmentsService {
   return true;
 }
 
- async  listAvailableSlots(
+async listAvailableSlots(
   barberId: number,
   date: string,
-  duracaoMinutos: number
+  duracaoMinutos: number,
+  tipo: "cliente" | "barbeiro"
 ): Promise<string[]> {
   const numericBarberId = Number(barberId);
 
@@ -363,26 +363,46 @@ export class AppointmentsService {
     minutosFechamento += 1440;
   }
 
-  // O último horário possível depende da duração do serviço.
+  // CLIENTE:
+  // precisa garantir que o serviço termine antes do fechamento.
   //
-  // Exemplo:
-  // Fechamento 19:00 (1140)
-  // Serviço 30 min
-  // Último início = 1140 - 30 = 1110 = 18:30
+  // BARBEIRO:
+  // pode visualizar todos os slots do expediente.
   const ultimoInicioPossivel =
-    minutosFechamento - duracaoMinutos;
+    tipo === "cliente"
+      ? minutosFechamento - duracaoMinutos
+      : minutosFechamento;
 
   const slotsPadronizados: string[] = [];
 
   while (minutosAbertura <= ultimoInicioPossivel) {
-     const slot = Time.fromMinutes(minutosAbertura);
-      const inicioServico = minutosAbertura;
-       const fimServico = inicioServico + duracaoMinutos; 
-       // Verifica se o serviço inteiro invade o intervalo/almoço.
-       //  // // Exemplo: // Almoço: 12:00 → 14:00 // Serviço: 30 min // // 11:30 → 12:00 ✅ // 11:40 → 12:10 ❌ // 11:50 → 12:20 ❌ // 14:00 → 14:30 ✅
-         const atravessaAlmoco = inicioAlmoco && fimAlmoco && inicioServico < fimAlmoco.toMinutes() && fimServico > inicioAlmoco.toMinutes();
-          if (!atravessaAlmoco) { slotsPadronizados.push(slot.toString()); } minutosAbertura += intervalo;
-         }
+    const slot = Time.fromMinutes(minutosAbertura);
+
+    
+    // Para o cliente, o serviço inteiro precisa respeitar o almoço.
+    // Para o barbeiro, o horário continua visível.
+     if (tipo === "cliente") {
+    const inicioServico = minutosAbertura;
+    const fimServico = inicioServico + duracaoMinutos;
+
+    const atravessaAlmoco =
+      inicioAlmoco &&
+      fimAlmoco &&
+      inicioServico < fimAlmoco.toMinutes() &&
+      fimServico > inicioAlmoco.toMinutes();
+
+    if (!atravessaAlmoco) {
+      slotsPadronizados.push(slot.toString());
+    }
+  } else {
+    // Barbeiro vê todos os slots do expediente
+    slotsPadronizados.push(slot.toString());
+  }
+
+
+  
+    minutosAbertura += intervalo;
+  }
 
   // Buscar agendamentos e bloqueios reais no banco
   const [horariosOcupados, rawBloqueios] = await Promise.all([
@@ -390,6 +410,7 @@ export class AppointmentsService {
       numericBarberId,
       date
     ),
+
     this.scheduleBlocksRepository.findBlocksByDate(
       numericBarberId,
       date
@@ -416,19 +437,36 @@ export class AppointmentsService {
     return [];
   }
 
- 
+
+console.log("🔥🔥 ENTROU NO FILTER");
+console.log("🔥 TIPO NO FILTER:", tipo);
+console.log("🔥 QUANTIDADE DE SLOTS:", slotsPadronizados.length);
+
   const slotsLivres = slotsPadronizados.filter((slot) => {
     const horarioAtual = new Time(slot);
 
-    // Verifica agendamentos existentes
     const inicioServico = horarioAtual.toMinutes();
     const fimServico = inicioServico + duracaoMinutos;
 
-const ocupado = horariosOcupados.some((agendamento: IBookedSlot) => {
-  const inicioAgendamento = new Time(agendamento.inicio);
+    // =====================================================
+    // AGENDAMENTOS
+    // =====================================================
+
+
+    
+    const ocupado = horariosOcupados.some((agendamento) => {
+  const inicioAgendamento =
+    new Time(agendamento.inicio);
 
   const inicioAgendamentoMinutos =
     inicioAgendamento.toMinutes();
+
+  if (tipo === "barbeiro") {
+    return inicioServico === inicioAgendamentoMinutos;
+  }
+
+  const fimServico =
+    inicioServico + duracaoMinutos;
 
   const fimAgendamentoMinutos =
     inicioAgendamentoMinutos + agendamento.duracao;
@@ -437,15 +475,20 @@ const ocupado = horariosOcupados.some((agendamento: IBookedSlot) => {
     inicioServico < fimAgendamentoMinutos &&
     fimServico > inicioAgendamentoMinutos
   );
+
+
 });
-    // Verifica bloqueios parciais
+
     const bloqueado = bloqueios.some((b) => {
   if (!b.horaInicio || !b.horaFim) {
     return false;
   }
 
-  const inicioBloqueio = new Time(b.horaInicio);
-  const fimBloqueio = new Time(b.horaFim);
+  const inicioBloqueio =
+    new Time(b.horaInicio);
+
+  const fimBloqueio =
+    new Time(b.horaFim);
 
   const inicioBloqueioMinutos =
     inicioBloqueio.toMinutes();
@@ -453,8 +496,12 @@ const ocupado = horariosOcupados.some((agendamento: IBookedSlot) => {
   const fimBloqueioMinutos =
     fimBloqueio.toMinutes();
 
-  const inicioServico =
-    horarioAtual.toMinutes();
+  if (tipo === "barbeiro") {
+    return (
+      inicioServico >= inicioBloqueioMinutos &&
+      inicioServico < fimBloqueioMinutos
+    );
+  }
 
   const fimServico =
     inicioServico + duracaoMinutos;
@@ -465,14 +512,23 @@ const ocupado = horariosOcupados.some((agendamento: IBookedSlot) => {
   );
 });
 
+if (
+  tipo === "barbeiro" &&
+  ["09:00", "09:10", "09:20", "09:30", "09:40", "09:50", "10:00"].includes(slot)
+) {
+  console.log("🧪 SLOT:", slot);
+  console.log("🧪 INICIO:", inicioServico);
+  console.log("🧪 OCUPADO:", ocupado);
+  console.log("🧪 BLOQUEADO:", bloqueado);
+}
+
     return !ocupado && !bloqueado;
   });
 
   return slotsLivres;
 }
 
-
-  private getStatusVisual(appointment: {
+private getStatusVisual(appointment: {
     dataHora: Date;
     totalDuracao: number;
   }) {
@@ -491,9 +547,9 @@ const ocupado = horariosOcupados.some((agendamento: IBookedSlot) => {
     }
 
     return "concluido";
-  }
+}
 
-  async getRecebimentos({ startDate, endDate, barberId }: { startDate: string; endDate: string; barberId?: number }) {
+async getRecebimentos({ startDate, endDate, barberId }: { startDate: string; endDate: string; barberId?: number }) {
     const rawRecebimentos = await this.appointmentsRepository.findRecebimentosByPeriod(
       startDate,
       endDate,
@@ -518,6 +574,6 @@ const ocupado = horariosOcupados.some((agendamento: IBookedSlot) => {
       items,
       totalPeriodo,
     };
-  }
+}
 }
 
