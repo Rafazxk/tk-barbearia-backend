@@ -44,6 +44,7 @@ async listBarbers(): Promise<IBarberDTO[]> {
       telefone: barbersTable.telefone,
       foto: barbersTable.foto,
       role: barbersTable.role,
+      notificacoesNovoAgendamento: barbersTable.notificacoesNovoAgendamento
     })
     .from(barbersTable);
 
@@ -55,6 +56,7 @@ async listBarbers(): Promise<IBarberDTO[]> {
     telefone: b.telefone,
     foto: b.foto,
     role: b.role ?? "barber",
+    notificacoesNovoAgendamento: b.notificacoesNovoAgendamento,
   }));
 }
 
@@ -113,4 +115,46 @@ async updateNome(id: number, nome: string): Promise<IBarberDTO> {
     role: barberAtualizado.role ?? "barber"
   };
 }
+
+async updateNotificacoesNovoAgendamento(
+  id: number,
+  ativo: boolean
+): Promise<IBarberDTO> {
+  const [barberAtualizado] = await db
+    .update(barbersTable)
+    .set({
+      notificacoesNovoAgendamento: ativo,
+    })
+    .where(eq(barbersTable.id, Number(id)))
+    .returning();
+
+  if (!barberAtualizado) {
+    throw new Error("Barbeiro não encontrado.");
+  }
+
+  return {
+    ...barberAtualizado,
+    role: barberAtualizado.role ?? "barber",
+  };
+}
+
+async getNotificacoesNovoAgendamento(
+  id: number
+): Promise<boolean> {
+  const [barber] = await db
+    .select({
+      notificacoesNovoAgendamento:
+        barbersTable.notificacoesNovoAgendamento,
+    })
+    .from(barbersTable)
+    .where(eq(barbersTable.id, Number(id)))
+    .limit(1);
+
+  if (!barber) {
+    throw new Error("Barbeiro não encontrado.");
+  }
+
+  return barber.notificacoesNovoAgendamento;
+}
+
 }

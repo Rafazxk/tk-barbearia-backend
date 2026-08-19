@@ -1,0 +1,1 @@
+ALTER TABLE "barbeiros" ADD COLUMN "notificacoes_novo_agendamento" boolean DEFAULT true NOT NULL;

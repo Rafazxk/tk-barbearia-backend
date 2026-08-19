@@ -13,14 +13,16 @@ import { PushNotificationService } from "../../../shared/notifications/PushNotif
 import { PushSubscriptionRepository } from "../../../shared/notifications/repositories/PushSubscriptionRepository.js";
 
 const pushRepository = new PushSubscriptionRepository();
-const pushService = new PushNotificationService(pushRepository);
+const barbersRepository = new BarbersRepository();
+
+const pushService = new PushNotificationService(pushRepository, barbersRepository);
 
 const appointmentRoutes = Router();
 
 const businessHoursRepository = new BusinessHoursRepository();
 const appointmentsRepository = new AppointmentsRepository();
 const scheduleBlocksRepository = new ScheduleBlocksRepository();
-const barbersRepository = new BarbersRepository();
+
 
 const evolutionClient = new EvolutionClient();
 

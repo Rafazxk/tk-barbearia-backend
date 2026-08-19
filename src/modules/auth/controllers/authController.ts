@@ -6,6 +6,9 @@ const UpdateProfileBodySchema = z.object({
   nome: z.string().min(2, "O nome deve ter no mínimo 2 caracteres.")
 });
 
+const UpdateNotificationPreferenceSchema = z.object({
+  ativo: z.boolean(),
+});
 
 const LoginBodySchema = z.object({
   email: z.string().email("E-mail inválido."),
@@ -19,10 +22,9 @@ const GoogleLoginBodySchema = z.object({
 export class AuthController {
   
 
-  // Tira do Controller a responsabilidade de saber criar instâncias de banco de dados
   constructor(private authService: AuthService) {}
 
-  // Helper privado para centralizar a criação do cookie seguro
+
   private setAuthCookie(res: Response, token: string) {
     res.cookie("token", token, {
       httpOnly: true,
@@ -32,7 +34,7 @@ export class AuthController {
     });
   }
 
-  // POST /auth/register
+
   register = async (req: Request, res: Response): Promise<any> => {
     try {
       const dadosValidados = RegisterBodySchema.parse(req.body);
@@ -47,8 +49,6 @@ export class AuthController {
     }
   };
 
-  // GET /auth/barbers
-  // 👇 CORRIGIDO: Agora usa Arrow Function para blindar o 'this' e busca através do Service
   listBarbers = async (req: Request, res: Response): Promise<Response> => {
     try {
       // Delegando a responsabilidade de buscar os dados para o AuthService
@@ -61,7 +61,7 @@ export class AuthController {
     }
   };
 
-  // POST /auth/login
+
   login = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { email, password } = LoginBodySchema.parse(req.body);
@@ -84,7 +84,7 @@ export class AuthController {
     }
   };
 
-  // POST /auth/login-google
+
   loginWithGoogle = async (req: Request, res: Response): Promise<Response> => {
     try {
       const { token } = GoogleLoginBodySchema.parse(req.body);
@@ -126,4 +126,84 @@ export class AuthController {
   }
 };
 
+updateNotificationPreference = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const barberId = (req as any).user?.id;
+
+    if (!barberId) {
+      return res.status(401).json({
+        error: "Usuário não autenticado.",
+      });
+    }
+
+    const { ativo } = UpdateNotificationPreferenceSchema.parse(req.body);
+
+    const atualizado =
+      await this.authService.updateNotificacoesNovoAgendamento(
+        Number(barberId),
+        ativo
+      );
+
+    return res.json({
+      message: "Preferência de notificação atualizada.",
+      notificacoesNovoAgendamento:
+        atualizado.notificacoesNovoAgendamento,
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        erros: error.format(),
+      });
+    }
+
+    console.error(
+      "Erro ao atualizar preferência de notificações:",
+      error
+    );
+
+    return res.status(500).json({
+      error:
+        error.message ||
+        "Erro interno ao atualizar preferência.",
+    });
+  }
+};
+
+getNotificationPreference = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const barberId = (req as any).user?.id;
+
+    if (!barberId) {
+      return res.status(401).json({
+        error: "Usuário não autenticado."
+      });
+    }
+
+    const ativo =
+      await this.authService.getNotificacoesNovoAgendamento(
+        Number(barberId)
+      );
+
+    return res.json({
+      ativo
+    });
+  } catch (error: any) {
+    console.error(
+      "Erro ao buscar preferência de notificação:",
+      error
+    );
+
+    return res.status(500).json({
+      error:
+        error.message ||
+        "Erro ao buscar preferência de notificação."
+    });
+  }
+};
 }

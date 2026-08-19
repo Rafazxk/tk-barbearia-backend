@@ -1,13 +1,14 @@
 import { type RegisterInput } from "../domain/AuthService.js";
 
 export interface IBarberDTO {
-  id: number; 
+  id: number;
   nome: string;
   email: string;
   password?: string;
-  telefone: string| null;
+  telefone: string | null;
   foto?: string | null;
   role: string;
+  notificacoesNovoAgendamento: boolean;
 }
 
 export interface IBarbersRepository {
@@ -17,4 +18,12 @@ export interface IBarbersRepository {
   findById(id: number): Promise<IBarberDTO | null>;
   updateFoto(id: number, fotoUrl: string): Promise<IBarberDTO>;
   updateNome(id: number, nome: string): Promise<IBarberDTO>;
+  updateNotificacoesNovoAgendamento(
+    id: number,
+    ativo: boolean
+  ): Promise<IBarberDTO>;
+
+  getNotificacoesNovoAgendamento(
+  id: number
+): Promise<boolean>;
 }

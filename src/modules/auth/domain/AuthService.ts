@@ -64,10 +64,10 @@ export class AuthService {
     };
   }
 
-async listAllBarbers() {
-  // Chamada limpa isolando o Drizzle dentro do repositório
-  return await this.barbersRepository.listBarbers();
-}
+  async listAllBarbers() {
+    // Chamada limpa isolando o Drizzle dentro do repositório
+    return await this.barbersRepository.listBarbers();
+  }
 
   async register(dados: RegisterInput) {
     const barbeiroExistente = await this.barbersRepository.findByEmail(dados.email);
@@ -95,8 +95,7 @@ async listAllBarbers() {
     };
   }
 
-  // LOGIN COM GOOGLE 
-  
+
   async loginWithGoogle(googleToken: string) {
     const googleClientId = process.env.GOOGLE_CLIENT_ID;
 
@@ -146,13 +145,27 @@ async listAllBarbers() {
   }
 
   async updateProfile(id: number, nome: string) {
-  const barberAtualizado = await this.barbersRepository.updateNome(id, nome);
+    const barberAtualizado = await this.barbersRepository.updateNome(id, nome);
 
-  return {
-    id: barberAtualizado.id,
-    nome: barberAtualizado.nome,
-    email: barberAtualizado.email,
-    role: barberAtualizado.role
-  };
-}
+    return {
+      id: barberAtualizado.id,
+      nome: barberAtualizado.nome,
+      email: barberAtualizado.email,
+      role: barberAtualizado.role
+    };
+  }
+
+  async updateNotificacoesNovoAgendamento(
+    id: number,
+    ativo: boolean
+  ) {
+    return await this.barbersRepository.updateNotificacoesNovoAgendamento(
+      id,
+      ativo
+    );
+  }
+
+  async getNotificacoesNovoAgendamento(id: number) {
+  return await this.barbersRepository.getNotificacoesNovoAgendamento(id);
+  }
 }

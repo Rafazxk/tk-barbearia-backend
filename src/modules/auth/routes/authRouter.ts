@@ -69,6 +69,18 @@ authRouter.post("/register", authController.register);
 authRouter.post("/login", authController.login);
 authRouter.post("/google", authController.loginWithGoogle);
 authRouter.put("/update-profile", authMiddleware, authController.updateProfile);
+authRouter.put(
+  "/notification-preference",
+  authMiddleware,
+  authController.updateNotificationPreference
+);
+
+authRouter.get(
+  "/notification-preference",
+  authMiddleware,
+  authController.getNotificationPreference
+);
+
 authRouter.get("/barbers", authController.listBarbers);
 
 export { authRouter };

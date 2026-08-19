@@ -10,9 +10,9 @@ const pool = new Pool({
 const db = drizzle(pool);
 
 async function main() {
-  console.log(" Aplicando migrations no banco de produção...");
+  
   await migrate(db, { migrationsFolder: "./drizzle" });
-  console.log(" Migrations aplicadas com sucesso!");
+  
   await pool.end();
   process.exit(0);
 }

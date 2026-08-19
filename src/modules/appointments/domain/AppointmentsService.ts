@@ -438,10 +438,6 @@ async listAvailableSlots(
   }
 
 
-console.log("🔥🔥 ENTROU NO FILTER");
-console.log("🔥 TIPO NO FILTER:", tipo);
-console.log("🔥 QUANTIDADE DE SLOTS:", slotsPadronizados.length);
-
   const slotsLivres = slotsPadronizados.filter((slot) => {
     const horarioAtual = new Time(slot);
 
@@ -451,7 +447,6 @@ console.log("🔥 QUANTIDADE DE SLOTS:", slotsPadronizados.length);
     // =====================================================
     // AGENDAMENTOS
     // =====================================================
-
 
     
     const ocupado = horariosOcupados.some((agendamento) => {
