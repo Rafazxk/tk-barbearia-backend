@@ -13,6 +13,7 @@ const pushService = new PushNotificationService(
   pushRepository,
   barbersRepository
 );
+
 const pushController = new PushNotificationController(pushService);
 
 // Registro de rota

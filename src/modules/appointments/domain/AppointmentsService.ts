@@ -433,9 +433,9 @@ async listAvailableSlots(
       (!b.horaInicio && !b.horaFim)
   );
 
-  if (bloqueioTotal) {
-    return [];
-  }
+ if (bloqueioTotal && tipo === "cliente") {
+  return [];
+}
 
 
   const slotsLivres = slotsPadronizados.filter((slot) => {
@@ -474,32 +474,18 @@ async listAvailableSlots(
 
 });
 
-    const bloqueado = bloqueios.some((b) => {
+const bloqueado = tipo === "cliente" && bloqueios.some((b) => {
   if (!b.horaInicio || !b.horaFim) {
     return false;
   }
 
-  const inicioBloqueio =
-    new Time(b.horaInicio);
+  const inicioBloqueio = new Time(b.horaInicio);
+  const fimBloqueio = new Time(b.horaFim);
 
-  const fimBloqueio =
-    new Time(b.horaFim);
+  const inicioBloqueioMinutos = inicioBloqueio.toMinutes();
+  const fimBloqueioMinutos = fimBloqueio.toMinutes();
 
-  const inicioBloqueioMinutos =
-    inicioBloqueio.toMinutes();
-
-  const fimBloqueioMinutos =
-    fimBloqueio.toMinutes();
-
-  if (tipo === "barbeiro") {
-    return (
-      inicioServico >= inicioBloqueioMinutos &&
-      inicioServico < fimBloqueioMinutos
-    );
-  }
-
-  const fimServico =
-    inicioServico + duracaoMinutos;
+  const fimServico = inicioServico + duracaoMinutos;
 
   return (
     inicioServico < fimBloqueioMinutos &&
