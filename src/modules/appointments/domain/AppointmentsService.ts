@@ -436,7 +436,7 @@ async listAvailableSlots(
  if (bloqueioTotal && tipo === "cliente") {
   return [];
 }
-
+ 
 
   const slotsLivres = slotsPadronizados.filter((slot) => {
     const horarioAtual = new Time(slot);
