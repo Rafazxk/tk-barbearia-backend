@@ -371,8 +371,9 @@ const fimDia = DateTime.fromDateOnly(date)
 
     
   return results;
-}
-async findAppointmentsNeedingReminder() {
+  }
+
+  async findAppointmentsNeedingReminder() {
     const agora = new Date();
     
     // Janela de 30 a 35 minutos à frente
@@ -403,5 +404,23 @@ async findAppointmentsNeedingReminder() {
           eq(whatsappSettingsTable.sendReminderNotifications, true)
         )
       );
+  }
+
+  async findByBarberAndDateTime(
+  barberId: number,
+  dateTime: Date
+) {
+  const [appointment] = await db
+    .select()
+    .from(appointmentsTable)
+    .where(
+      and(
+        eq(appointmentsTable.barbeiroId, barberId),
+        eq(appointmentsTable.dataHora, dateTime)
+      )
+    )
+    .limit(1);
+
+  return appointment ?? null;
   }
 }

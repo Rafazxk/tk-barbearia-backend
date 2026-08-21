@@ -150,6 +150,16 @@ async createAppointment(data: {
   // Cria o objeto Date preservando exatamente o horário local
   const dataAgendamento = DateTime.fromLocalString(data.dataHora);
 
+const existente =
+  await this.appointmentsRepository.findByBarberAndDateTime(
+    data.barbeiroId,
+    dataAgendamento.toDate()
+  );
+
+if (existente) {
+  throw new Error("Este horário já foi agendado.");
+}
+
   const appointment = await this.appointmentsRepository.create({
     clienteNome: data.clienteNome,
     clienteTelefone: data.clienteTelefone,

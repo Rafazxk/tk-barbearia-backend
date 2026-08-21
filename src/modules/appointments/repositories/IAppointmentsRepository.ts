@@ -48,6 +48,10 @@ export interface IDashboardStats {
 export interface IAppointmentsRepository {
   findAll(filters?: IAppointmentsFilters): Promise<any[]>;
   findById(id: number): Promise<any | null>;
+  findByBarberAndDateTime(
+  barberId: number,
+  dateTime: Date
+): Promise<any | null>;
   findServicesByAppointmentId(appointmentId: number): Promise<any[]>;
   create(data: { clienteNome: string; clienteTelefone: string; dataHora: Date; barbeiroId: number, duracaoMinutos: number }): Promise<any>;
   update(id: number, data: any): Promise<any | null>;
